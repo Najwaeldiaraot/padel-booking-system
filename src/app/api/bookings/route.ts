@@ -34,7 +34,9 @@ export async function GET(request: Request) {
 
     const formattedBookings = bookings.map((b) => ({
       ...b,
+      customerName: decryptPII(b.customerName),
       customerContact: decryptPII(b.customerContact),
+      cancelReason: b.cancelReason ? decryptPII(b.cancelReason) : null,
       status: b.checkedInAt && b.status === "CONFIRMED" ? "CHECKED_IN" : b.status,
     }));
 
@@ -71,24 +73,36 @@ export async function POST(request: Request) {
     }
 
     const [h, m] = startTime.split(":").map(Number);
-    const endMinutes = h * 60 + m + Math.round(durationHours * 60);
-    const bookingEndTime = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    const bookingStartMinutes = h * 60 + m;
+    const bookingEndMinutes = bookingStartMinutes + Math.round(durationHours * 60);
+    const bookingEndTime = `${String(Math.floor(bookingEndMinutes / 60)).padStart(2, "0")}:${String(bookingEndMinutes % 60).padStart(2, "0")}`;
 
-    // 1. Double check slot conflict in DB
-    const existingBooking = await prisma.booking.findFirst({
+    // 1. Double check slot conflict in DB (overlapping active bookings including CHECKED_IN)
+    const potentialBookings = await prisma.booking.findMany({
       where: {
         courtId: Number(courtId),
         date,
-        startTime: { lt: bookingEndTime },
         status: {
-          in: ["HOLD", "PENDING_PAYMENT", "CONFIRMED"],
+          in: ["HOLD", "PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN"],
         },
+      },
+      select: {
+        id: true,
+        startTime: true,
+        durationHours: true,
       },
     });
 
-    if (existingBooking) {
+    const conflictingBooking = potentialBookings.find((b) => {
+      const [exH, exM] = b.startTime.split(":").map(Number);
+      const exStart = exH * 60 + exM;
+      const exEnd = exStart + Math.round(b.durationHours * 60);
+      return bookingStartMinutes < exEnd && bookingEndMinutes > exStart;
+    });
+
+    if (conflictingBooking) {
       return NextResponse.json(
-        { error: "Slot waktu ini sudah dipesan oleh pengguna lain." },
+        { error: "Slot waktu ini sedang digunakan atau sudah dipesan oleh pemain lain." },
         { status: 409 }
       );
     }
@@ -138,7 +152,8 @@ export async function POST(request: Request) {
       if (!customer) {
         customer = await prisma.customer.create({
           data: {
-            name: customerName,
+            name: encryptPII(customerName),
+            nameBlindIndex: generateBlindIndex(customerName),
             email: isEmail ? encryptPII(rawContact) : null,
             emailBlindIndex: isEmail ? blindIndex : null,
             phone: !isEmail ? encryptPII(rawContact) : null,
@@ -159,12 +174,24 @@ export async function POST(request: Request) {
       customerId = customer.id;
     }
 
+    let validUserId: string | null = null;
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (userExists) {
+        validUserId = userExists.id;
+      }
+    }
+
     const newBooking = await prisma.booking.create({
       data: {
         code,
-        userId: userId || null,
+        userId: validUserId,
         customerId,
-        customerName,
+        customerName: encryptPII(customerName),
+        nameBlindIndex: generateBlindIndex(customerName),
         customerContact: encryptedContact,
         courtId: Number(courtId),
         date,

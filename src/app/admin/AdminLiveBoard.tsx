@@ -1,17 +1,17 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { Link } from "react-router"
 import {
   Activity,
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   Clock,
   Grid2X2,
   RefreshCw,
   Search,
+  Sliders,
   Timer,
-  User,
   UserCheck,
 } from "lucide-react"
 import { api } from "../api"
@@ -19,14 +19,13 @@ import {
   button,
   dateLabel,
   endTime,
-  eyebrow,
   money,
   outlineButton,
   today,
   type Booking,
 } from "../club"
 import { Spinner } from "../ui"
-import { customerName, initials, useAdmin } from "./shared"
+import { customerName, useAdmin } from "./shared"
 
 interface AdminLiveBoardProps {
   openDetail?: (booking: Booking) => void
@@ -49,16 +48,25 @@ function calculateCountdown(dateStr: string, startTimeStr: string, durationMinut
     const overdueMinutes = Math.floor(Math.abs(totalSeconds) / 60)
     return {
       isExpired: true,
-      text: `Waktu Habis (+${overdueMinutes}m lewat)`,
+      text: overdueMinutes > 0 ? `Waktu habis (+${overdueMinutes}m)` : "Waktu habis",
       progressPercent: 100,
     }
   }
 
-  const mins = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  const mins = Math.floor((totalSeconds % 3600) / 60)
   const secs = totalSeconds % 60
+
+  let formattedText = ""
+  if (hours > 0) {
+    formattedText = `${hours}j ${mins}m ${secs}d`
+  } else {
+    formattedText = `${mins}m ${secs}d`
+  }
+
   return {
     isExpired: false,
-    text: `Sisa ${mins}m ${String(secs).padStart(2, "0")}s`,
+    text: `Sisa ${formattedText}`,
     progressPercent,
   }
 }
@@ -135,7 +143,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
     setProcessingId(bookingId)
     try {
       await api.admin.checkin(bookingId)
-      notify(`Pemain booking ${bookingId} berhasil check-in. Status: Sedang Bermain.`)
+      notify(`Pemain ${bookingId} berhasil check-in. Status: Sedang Bermain.`)
       await reload()
     } catch (err: any) {
       notify(err?.message || "Gagal melakukan check-in pemain.")
@@ -180,17 +188,14 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
       {/* Header Bar: Status Real-time & Ringkasan */}
       <div className="flex flex-wrap items-center justify-between gap-4 border border-border bg-card p-5">
         <div className="flex items-center gap-3.5">
-          <div className="flex size-11 items-center justify-center bg-primary text-primary-foreground">
-            <Activity size={22} strokeWidth={1.5} />
+          <div className="flex size-10 items-center justify-center bg-forest-deep text-white">
+            <Activity size={20} strokeWidth={1.5} />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-display text-2xl">Live Queue Board</h2>
-              <span className="flex items-center gap-1.5 border border-primary/20 bg-primary/10 px-2 py-0.5 font-mono text-2xs font-bold text-primary">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                </span>
+              <span className="inline-flex items-center gap-1.5 border border-primary/20 bg-secondary px-2 py-0.5 text-2xs font-medium text-primary">
+                <span className="size-1.5 bg-forest-deep animate-pulse" />
                 LIVE {currentTimeStr} WIB
               </span>
             </div>
@@ -208,7 +213,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari pemain atau lapangan…"
-              className="w-full border border-border bg-background py-1.5 pr-3 pl-8 text-xs focus:border-primary focus:outline-none"
+              className="w-full border border-border bg-background py-1.5 pr-3 pl-8 text-xs text-foreground focus:border-primary focus:outline-none"
             />
           </div>
           <button
@@ -223,13 +228,24 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
         </div>
       </div>
 
-      {/* Mode Testing Notice (jika aktif) */}
+      {/* Mode Testing Notice (High-contrast & Brand consistent) */}
       {isBypass && (
-        <div className="flex items-center gap-2.5 border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200">
-          <AlertTriangle size={15} className="shrink-0 text-amber-600 dark:text-amber-400" />
-          <span>
-            <strong>Mode Testing Aktif:</strong> Papan antrean menampilkan seluruh data booking dan mengizinkan check-in tanpa pembatasan jadwal operasional. Ubah di Pengaturan Klub.
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5 bg-secondary px-2.5 py-1 text-2xs font-semibold text-primary">
+              <Sliders size={13} className="text-primary" />
+              Mode Testing Aktif
+            </span>
+            <p className="text-xs text-foreground">
+              Papan antrean menampilkan seluruh data booking dan mengizinkan check-in tanpa pembatasan jadwal operasional.
+            </p>
+          </div>
+          <Link
+            to="/admin/settings"
+            className="text-xs font-medium text-primary underline hover:text-forest-hover"
+          >
+            Ubah di Pengaturan Klub →
+          </Link>
         </div>
       )}
 
@@ -243,16 +259,16 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 <Clock size={15} />
               </span>
               <div>
-                <h3 className="font-display text-base">Menunggu Check-in</h3>
-                <p className="text-3xs text-muted-foreground">Booking terkonfirmasi siap main</p>
+                <h3 className="text-sm font-semibold text-foreground">Menunggu Check-in</h3>
+                <p className="text-2xs text-muted-foreground">Booking terkonfirmasi siap main</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 font-mono text-xs font-bold text-foreground">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
               {waitingList.length}
             </span>
           </header>
 
-          <div className="flex-1 space-y-3.5 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
+          <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             {waitingList.length === 0 ? (
               <div className="py-12 text-center text-xs text-muted-foreground">
                 <Clock size={28} className="mx-auto mb-2 text-muted-foreground/40" />
@@ -263,27 +279,27 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               waitingList.map((b) => (
                 <article
                   key={b.id}
-                  className="group relative border border-border/80 bg-background p-4 transition-all hover:border-primary/40 hover:shadow-sm"
+                  className="border border-border bg-background p-4 transition-colors hover:border-primary/50"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-mono text-2xs font-bold text-primary">{b.id}</span>
+                      <span className="text-2xs font-semibold text-primary">{b.id}</span>
                       <h4 className="mt-1 text-sm font-semibold text-foreground">{customerName(b)}</h4>
                       <p className="text-2xs text-muted-foreground">{b.customerContact || "Kontak tidak dicatat"}</p>
                     </div>
-                    <span className="border border-border/60 bg-secondary/80 px-2 py-0.5 font-mono text-2xs font-medium">
+                    <span className="border border-border bg-secondary px-2 py-0.5 text-2xs font-medium">
                       {money(b.total)}
                     </span>
                   </div>
 
-                  <div className="mt-3.5 space-y-1.5 border-t border-border/50 pt-3 text-xs">
-                    <div className="flex items-center gap-2 text-foreground/90">
+                  <div className="mt-3.5 space-y-1.5 border-t border-border pt-3 text-xs">
+                    <div className="flex items-center gap-2 text-foreground">
                       <Grid2X2 size={13} className="text-primary shrink-0" />
                       <span className="font-medium truncate">{b.courtName}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock size={13} className="shrink-0" />
-                      <span>{b.time}–{endTime(b.time, b.duration)} WIB · {b.duration} menit</span>
+                    <div className="flex items-center gap-2 text-muted-foreground text-2xs">
+                      <Clock size={12} className="shrink-0" />
+                      <span>{dateLabel(b.date, true)} · {b.time}–{endTime(b.time, b.duration)} WIB ({b.duration} menit)</span>
                     </div>
                   </div>
 
@@ -292,7 +308,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                       type="button"
                       disabled={processingId === b.id}
                       onClick={() => handleCheckin(b.id)}
-                      className={`${button} flex-1 !min-h-9 text-xs gap-1.5 bg-forest-dark hover:bg-forest text-white justify-center`}
+                      className={`${button} flex-1 !min-h-9 text-xs gap-1.5 bg-forest-deep hover:bg-forest-hover text-white justify-center`}
                     >
                       {processingId === b.id ? (
                         <Spinner className="text-white" />
@@ -306,7 +322,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                       <button
                         type="button"
                         onClick={() => openDetail(b)}
-                        className={`${outlineButton} !min-h-9 px-3 text-2xs`}
+                        className={`${outlineButton} !min-h-9 px-3 text-xs`}
                         aria-label={`Lihat detail booking ${b.id}`}
                       >
                         Detail
@@ -321,28 +337,28 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
 
         {/* ================= KOLOM 2: SEDANG BERMAIN ================= */}
         <section className="flex flex-col border border-border bg-card">
-          <header className="flex items-center justify-between border-b border-border bg-emerald-500/10 dark:bg-emerald-950/30 px-5 py-4">
+          <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
             <div className="flex items-center gap-2.5">
-              <span className="relative flex size-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-3 rounded-full bg-emerald-500" />
+              <span className="flex size-7 items-center justify-center bg-forest-deep text-white">
+                <Timer size={15} />
               </span>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-display text-base">Sedang Bermain</h3>
-                  <span className="bg-emerald-500/20 px-1.5 py-0.2 font-mono text-3xs font-bold text-emerald-800 dark:text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">Sedang Bermain</h3>
+                  <span className="inline-flex items-center gap-1.5 bg-success-soft text-success-foreground px-2 py-0.5 text-2xs font-semibold">
+                    <span className="size-1.5 bg-success-foreground animate-pulse" />
                     AKTIF
                   </span>
                 </div>
-                <p className="text-3xs text-muted-foreground">Pemain berada di lapangan</p>
+                <p className="text-2xs text-muted-foreground">Pemain berada di lapangan</p>
               </div>
             </div>
-            <span className="border border-emerald-500/30 bg-emerald-500/20 px-2.5 py-0.5 font-mono text-xs font-bold text-emerald-900 dark:text-emerald-200">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
               {playingList.length}
             </span>
           </header>
 
-          <div className="flex-1 space-y-3.5 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
+          <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             {playingList.length === 0 ? (
               <div className="py-12 text-center text-xs text-muted-foreground">
                 <Timer size={28} className="mx-auto mb-2 text-muted-foreground/40" />
@@ -355,50 +371,43 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 return (
                   <article
                     key={b.id}
-                    className={`group relative border p-4 transition-all ${
+                    className={`border p-4 transition-colors ${
                       countdown.isExpired
-                        ? "border-amber-500 bg-amber-500/10 shadow-sm"
-                        : "border-emerald-500/40 bg-background shadow-xs hover:border-emerald-600"
+                        ? "border-destructive/60 bg-danger-soft/20"
+                        : "border-primary/40 bg-background hover:border-primary"
                     }`}
                   >
-                    {/* Header Kartu: Status Pulsing & Kode */}
+                    {/* Header Kartu */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex size-2.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-                        </span>
-                        <span className="font-mono text-2xs font-bold text-emerald-700 dark:text-emerald-400">
-                          {b.courtName}
-                        </span>
-                      </div>
-                      <span className="font-mono text-3xs text-muted-foreground">{b.id}</span>
+                      <span className="inline-flex items-center gap-1.5 bg-secondary px-2 py-0.5 text-2xs font-medium text-foreground">
+                        <Grid2X2 size={12} className="text-primary" />
+                        {b.courtName}
+                      </span>
+                      <span className="text-2xs text-muted-foreground">{b.id}</span>
                     </div>
 
                     {/* Informasi Pemain */}
                     <div className="mt-2.5">
                       <h4 className="text-sm font-semibold text-foreground">{customerName(b)}</h4>
                       <p className="text-2xs text-muted-foreground">
-                        Jadwal: {b.time}–{endTime(b.time, b.duration)} WIB ({b.duration} menit)
+                        {dateLabel(b.date, true)} · {b.time}–{endTime(b.time, b.duration)} WIB ({b.duration} menit)
                       </p>
                     </div>
 
                     {/* Live Countdown & Progress Bar */}
-                    <div className="mt-3.5 space-y-2 rounded-sm border border-border/70 bg-secondary/50 p-2.5">
+                    <div className="mt-3.5 space-y-2 border border-border bg-surface p-3">
                       <div className="flex items-center justify-between text-2xs">
-                        <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
                           {countdown.isExpired ? (
-                            <AlertTriangle size={13} className="text-amber-600 animate-bounce" />
+                            <AlertTriangle size={13} className="text-destructive shrink-0" />
                           ) : (
-                            <Clock size={13} className="text-emerald-600" />
+                            <Clock size={13} className="text-primary shrink-0" />
                           )}
-                          Sisa Waktu Bermain:
+                          {countdown.isExpired ? "Durasi bermain selesai" : "Sisa waktu bermain"}
                         </span>
                         <span
-                          className={`font-mono text-xs font-bold ${
-                            countdown.isExpired
-                              ? "text-amber-700 dark:text-amber-300"
-                              : "text-emerald-700 dark:text-emerald-300"
+                          className={`text-xs font-semibold ${
+                            countdown.isExpired ? "text-destructive" : "text-primary"
                           }`}
                         >
                           {countdown.text}
@@ -406,10 +415,10 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                       </div>
 
                       {/* Bar progres durasi main */}
-                      <div className="h-1.5 w-full overflow-hidden bg-border/60">
+                      <div className="h-1.5 w-full bg-border overflow-hidden">
                         <div
                           className={`h-full transition-all duration-1000 ${
-                            countdown.isExpired ? "bg-amber-500" : "bg-emerald-500"
+                            countdown.isExpired ? "bg-destructive" : "bg-forest-deep"
                           }`}
                           style={{ width: `${countdown.progressPercent}%` }}
                         />
@@ -424,8 +433,8 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                         onClick={() => handleComplete(b.id)}
                         className={`${button} flex-1 !min-h-9 text-xs gap-1.5 ${
                           countdown.isExpired
-                            ? "bg-amber-600 hover:bg-amber-700 text-white animate-pulse"
-                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            ? "bg-destructive hover:bg-destructive/90 text-white"
+                            : "bg-forest-deep hover:bg-forest-hover text-white"
                         } justify-center`}
                       >
                         {processingId === b.id ? (
@@ -440,7 +449,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                         <button
                           type="button"
                           onClick={() => openDetail(b)}
-                          className={`${outlineButton} !min-h-9 px-3 text-2xs`}
+                          className={`${outlineButton} !min-h-9 px-3 text-xs`}
                           aria-label={`Lihat detail booking ${b.id}`}
                         >
                           Detail
@@ -462,11 +471,11 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 <CheckCircle2 size={15} />
               </span>
               <div>
-                <h3 className="font-display text-base">Selesai</h3>
-                <p className="text-3xs text-muted-foreground">Sesi tuntas & siap dirotasi</p>
+                <h3 className="text-sm font-semibold text-foreground">Selesai</h3>
+                <p className="text-2xs text-muted-foreground">Sesi tuntas & siap dirotasi</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 font-mono text-xs font-bold text-foreground">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
               {completedList.length}
             </span>
           </header>
@@ -482,25 +491,25 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               completedList.map((b) => (
                 <article
                   key={b.id}
-                  className="border border-border/70 bg-background/80 p-3.5 transition-colors hover:border-border"
+                  className="border border-border bg-background p-3.5 transition-colors hover:border-border"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-mono text-2xs text-muted-foreground">{b.id}</span>
+                      <span className="text-2xs text-muted-foreground">{b.id}</span>
                       <h4 className="mt-0.5 text-xs font-semibold text-foreground">{customerName(b)}</h4>
                     </div>
-                    <span className="inline-flex items-center gap-1 border border-border bg-secondary px-2 py-0.5 text-3xs font-medium text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 border border-border bg-secondary px-2 py-0.5 text-2xs font-medium text-foreground">
                       <CheckCircle2 size={11} className="text-forest-muted" /> Selesai
                     </span>
                   </div>
 
-                  <div className="mt-2.5 flex items-center justify-between text-2xs text-muted-foreground border-t border-border/40 pt-2">
+                  <div className="mt-2.5 flex items-center justify-between text-2xs text-muted-foreground border-t border-border pt-2">
                     <span className="truncate">{b.courtName}</span>
-                    <span className="font-mono">{b.time}–{endTime(b.time, b.duration)} WIB</span>
+                    <span>{b.time}–{endTime(b.time, b.duration)} WIB</span>
                   </div>
 
                   {openDetail && (
-                    <div className="mt-3 pt-2 border-t border-border/40">
+                    <div className="mt-3 pt-2 border-t border-border">
                       <button
                         type="button"
                         onClick={() => openDetail(b)}

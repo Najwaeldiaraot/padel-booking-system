@@ -31,18 +31,24 @@ enum CourtType {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  name          String
-  email         String?        @unique
-  phone         String?        @unique
-  passwordHash  String?
-  role          Role           @default(PLAYER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  bookings      Booking[]
-  reviews       Review[]
-  notifications Notification[]
+  id              String         @id @default(cuid())
+  name            String
+  nameBlindIndex  String?
+  email           String?        @unique
+  phone           String?        @unique
+  emailBlindIndex String?
+  phoneBlindIndex String?
+  passwordHash    String?
+  role            Role           @default(PLAYER)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  bookings        Booking[]
+  reviews         Review[]
+  notifications   Notification[]
 
+  @@index([nameBlindIndex])
+  @@index([emailBlindIndex])
+  @@index([phoneBlindIndex])
   @@map("users")
 }
 
@@ -82,6 +88,7 @@ model Booking {
   customerId      String?
   customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName    String
+  nameBlindIndex  String?
   customerContact String
   courtId         Int
   court           Court            @relation(fields: [courtId], references: [id])
@@ -103,6 +110,7 @@ model Booking {
   history         BookingHistory[]
 
   @@index([courtId, date, status])
+  @@index([nameBlindIndex])
   @@map("bookings")
 }
 
@@ -168,6 +176,7 @@ model Notification {
 model Customer {
   id              String    @id @default(cuid())
   name            String
+  nameBlindIndex  String?
   phone           String?   @unique
   email           String?   @unique
   phoneBlindIndex String?
@@ -179,6 +188,7 @@ model Customer {
   updatedAt       DateTime  @updatedAt
   bookings        Booking[]
 
+  @@index([nameBlindIndex])
   @@index([phoneBlindIndex])
   @@index([emailBlindIndex])
   @@map("customers")

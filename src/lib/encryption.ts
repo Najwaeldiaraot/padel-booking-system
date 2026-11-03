@@ -80,3 +80,51 @@ export function generateBlindIndex(term: string): string {
   const key = getSecretKey();
   return crypto.createHmac("sha256", key).update(normalized).digest("hex");
 }
+
+/**
+ * Encrypt arbitrary JSON object into AES-256-GCM ciphertext.
+ */
+export function encryptJSON(data: any): string {
+  if (data === null || data === undefined) return "";
+  try {
+    const jsonStr = typeof data === "string" ? data : JSON.stringify(data);
+    return encryptPII(jsonStr);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Decrypt AES-256-GCM ciphertext back into typed JSON object.
+ */
+export function decryptJSON<T = any>(ciphertext: string | null | undefined): T | null {
+  if (!ciphertext) return null;
+  try {
+    const raw = decryptPII(ciphertext);
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mask sensitive PII for presentation layer when full display is not needed.
+ */
+export function maskPII(text: string, type: "email" | "phone" | "name" = "phone"): string {
+  if (!text) return "";
+  if (type === "email" && text.includes("@")) {
+    return text.replace(/^(.)(.*)(@.*)$/, (_, first, middle, domain) => `${first}${"•".repeat(Math.min(5, middle.length))}${domain}`);
+  }
+  if (type === "phone") {
+    const clean = text.trim();
+    if (clean.length > 7) {
+      return `${clean.slice(0, 4)}••••${clean.slice(-3)}`;
+    }
+    return `${clean.slice(0, 2)}••••`;
+  }
+  if (type === "name") {
+    const parts = text.trim().split(" ");
+    return parts.map((p, idx) => (idx === 0 ? p : `${p[0]}***`)).join(" ");
+  }
+  return text;
+}

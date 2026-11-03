@@ -6,7 +6,6 @@ import {
   button,
   dateLabel,
   endTime,
-  eyebrow,
   money,
   outlineButton,
   type Booking,
@@ -52,7 +51,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
           <button
             type="button"
             onClick={onClose}
-            className="flex size-7 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="flex size-7 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
             aria-label="Tutup tiket invoice"
           >
             <X size={16} />
@@ -65,7 +64,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
           <div className="border-b-2 border-[#1C2621] pb-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="font-mono text-2xs uppercase tracking-widest text-[#1C2621]/70 block mb-1">
+                <span className="text-2xs uppercase tracking-widest text-[#1C2621]/70 block mb-1 font-semibold">
                   Rally Padel Club · Jakarta
                 </span>
                 <h2
@@ -80,13 +79,13 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
 
               {/* Luxury PAID Badge */}
               <div className="flex flex-col items-end">
-                <div className="inline-flex items-center gap-1.5 border-2 border-[#1C2621] bg-[#1C2621] px-3 py-1 text-white">
+                <div className="inline-flex items-center gap-1.5 border border-[#1C2621] bg-[#1C2621] px-3 py-1 text-white">
                   <ShieldCheck size={13} className="text-[#C9D3B0]" />
-                  <span className="font-mono text-2xs font-bold uppercase tracking-wider">
-                    LUNAS / PAID
+                  <span className="text-2xs font-semibold uppercase tracking-wider">
+                    Lunas
                   </span>
                 </div>
-                <span className="mt-1.5 font-mono text-2xs font-semibold text-[#1C2621]/70">
+                <span className="mt-1.5 text-2xs font-medium text-[#1C2621]/70">
                   {invoiceNumber}
                 </span>
               </div>
@@ -97,14 +96,14 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
           <div className="mt-5 space-y-4 text-xs">
             {/* Court Highlight */}
             <div className="border border-[#1C2621]/20 bg-white/70 p-3.5">
-              <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-1">
+              <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 block mb-1">
                 Lapangan Terpilih
               </span>
               <div className="flex items-center justify-between">
                 <span className="font-display text-xl sm:text-2xl font-bold text-[#1C2621]">
                   {booking.courtName}
                 </span>
-                <span className="font-mono text-xs font-semibold uppercase px-2 py-0.5 bg-[#1C2621]/10 text-[#1C2621]">
+                <span className="text-xs font-semibold uppercase px-2 py-0.5 bg-[#1C2621]/10 text-[#1C2621]">
                   {booking.duration} Menit
                 </span>
               </div>
@@ -113,7 +112,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
             {/* Schedule Details Grid */}
             <div className="grid grid-cols-2 gap-3 border border-[#1C2621]/20 bg-white/50 p-3.5">
               <div>
-                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
                   Tanggal Main
                 </span>
                 <span className="font-semibold text-sm text-[#1C2621]">
@@ -121,7 +120,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
                 </span>
               </div>
               <div className="text-right">
-                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
                   Waktu (WIB)
                 </span>
                 <span className="font-semibold text-sm text-[#1C2621]">
@@ -129,7 +128,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
                 </span>
               </div>
               <div className="pt-2 border-t border-[#1C2621]/10">
-                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
                   Nama Pemesan
                 </span>
                 <span className="font-medium text-xs text-[#1C2621] truncate block">
@@ -137,83 +136,68 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
                 </span>
               </div>
               <div className="pt-2 border-t border-[#1C2621]/10 text-right">
-                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
                   Kontak
                 </span>
-                <span className="font-mono text-xs text-[#1C2621]/80 truncate block">
+                <span className="text-xs text-[#1C2621]/80 truncate block">
                   {booking.customerContact || "-"}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* PERFORATION LINE WITH NOTCHES */}
-          <div className="relative my-6 flex items-center justify-center">
-            {/* Left Notch */}
-            <div
-              aria-hidden="true"
-              className="absolute -left-6 sm:-left-8 size-6 rounded-r-full bg-[#0B241C] border-r border-[#1C2621]/40 print:hidden"
-            />
-            {/* Dashed Line */}
-            <div className="w-full border-t-2 border-dashed border-[#1C2621]/30" />
-            {/* Right Notch */}
-            <div
-              aria-hidden="true"
-              className="absolute -right-6 sm:-right-8 size-6 rounded-l-full bg-[#0B241C] border-l border-[#1C2621]/40 print:hidden"
-            />
-          </div>
+          {/* Clean Perforation Dashed Line (No weird side square boxes) */}
+          <div className="my-6 border-t-2 border-dashed border-[#1C2621]/25" />
 
-          {/* Ticket Admission Stub: High-Res QR Code */}
-          <div className="flex flex-col items-center justify-center border-2 border-[#1C2621] bg-white p-5 text-center shadow-inner">
-            <span className="font-mono text-2xs font-bold uppercase tracking-widest text-[#1C2621]/70 mb-2">
+          {/* Dedicated Clean QR Code Section */}
+          <div className="flex flex-col items-center justify-center py-2 text-center">
+            <span className="text-2xs font-semibold uppercase tracking-widest text-[#1C2621]/60 mb-3 block">
               Passcode Akses Lapangan
             </span>
 
-            {/* QR Code Container */}
-            <div className="p-2 border border-[#1C2621]/20 bg-white shadow-sm">
+            {/* Clean QR Code Container */}
+            <div className="p-3 bg-white border border-[#1C2621]/20 shadow-xs">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrUrl}
                 alt={`QR Code Tiket ${booking.id}`}
-                width={170}
-                height={170}
-                className="size-40 sm:size-44 object-contain"
+                width={180}
+                height={180}
+                className="size-44 sm:size-48 object-contain"
               />
             </div>
 
-            {/* Big Booking Code for Manual Check-in */}
-            <div className="mt-3">
-              <span className="font-mono text-lg sm:text-xl font-extrabold tracking-widest text-[#1C2621] block">
+            {/* Booking Code & Instruction Below QR */}
+            <div className="mt-3.5">
+              <span className="text-xl sm:text-2xl font-bold tracking-widest text-[#1C2621] block">
                 {booking.id.toUpperCase()}
               </span>
-              <p className="mt-1 text-2xs text-[#1C2621]/65 max-w-xs leading-relaxed">
-                Tunjukkan QR Code ini kepada petugas concierge klub saat tiba untuk verifikasi
-                check-in instan.
+              <p className="mt-1.5 text-xs text-[#1C2621]/70 max-w-xs leading-relaxed mx-auto">
+                Tunjukkan QR Code ini kepada petugas concierge klub saat tiba untuk verifikasi check-in instan.
               </p>
             </div>
           </div>
 
           {/* Pricing & Settlement Breakdown */}
-          <div className="mt-5 border-t border-[#1C2621]/20 pt-4 text-xs">
+          <div className="mt-6 border-t border-[#1C2621]/20 pt-4 text-xs">
             <div className="flex justify-between py-1 text-[#1C2621]/75">
               <span>Sewa Lapangan ({booking.duration} menit)</span>
-              <span className="font-mono font-medium">{money(booking.total)}</span>
+              <span className="font-semibold">{money(booking.total)}</span>
             </div>
             <div className="flex justify-between py-1 text-[#1C2621]/75">
               <span>Biaya Layanan & Pajak</span>
-              <span className="font-mono font-medium">Rp 0 (Termasuk)</span>
+              <span className="font-semibold">Rp 0 (Termasuk)</span>
             </div>
-            <div className="mt-2 flex justify-between border-t-2 border-[#1C2621] pt-2.5 text-base font-bold text-[#1C2621]">
+            <div className="mt-2.5 flex justify-between border-t-2 border-[#1C2621] pt-3 text-base font-bold text-[#1C2621]">
               <span className="font-display text-lg">Total Pembayaran</span>
-              <span className="font-mono text-lg">{money(booking.total)}</span>
+              <span className="text-lg font-bold">{money(booking.total)}</span>
             </div>
           </div>
 
           {/* Ticket Footer Microprint */}
           <div className="mt-6 border-t border-[#1C2621]/15 pt-3 text-center">
-            <p className="font-mono text-2xs uppercase tracking-wider text-[#1C2621]/50">
-              Rally Padel Club · Kebijakan pembatalan berlaku 24 jam sebelum jadwal · Concierge:
-              halo@rallypadel.club
+            <p className="text-2xs uppercase tracking-wider text-[#1C2621]/50">
+              Rally Padel Club · Kebijakan pembatalan berlaku 24 jam sebelum jadwal · Concierge: halo@rallypadel.club
             </p>
           </div>
         </div>

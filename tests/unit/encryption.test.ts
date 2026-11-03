@@ -3,6 +3,9 @@ import {
   encryptPII,
   decryptPII,
   generateBlindIndex,
+  encryptJSON,
+  decryptJSON,
+  maskPII,
 } from "@/lib/encryption";
 
 describe("AES-256-GCM PII Encryption & Blind Index", () => {
@@ -85,5 +88,32 @@ describe("AES-256-GCM PII Encryption & Blind Index", () => {
     const indexB = generateBlindIndex("08123456780");
 
     expect(indexA).not.toBe(indexB);
+  });
+
+  it("encrypts and decrypts structured JSON transaction payloads reversibly", () => {
+    const payload = {
+      orderId: "RLY-1234",
+      amount: 350000,
+      vaNumber: "9887711223344",
+      bank: "bca",
+      customer: {
+        name: "Budi Santoso",
+        phone: "08123456789",
+      },
+    };
+
+    const encrypted = encryptJSON(payload);
+    expect(encrypted).toBeDefined();
+    expect(encrypted).not.toContain("9887711223344");
+    expect(encrypted).not.toContain("Budi Santoso");
+
+    const decrypted = decryptJSON(encrypted);
+    expect(decrypted).toEqual(payload);
+  });
+
+  it("masks PII correctly for preview / logging", () => {
+    expect(maskPII("budi.santoso@example.com", "email")).toBe("b•••••@example.com");
+    expect(maskPII("081234567890", "phone")).toBe("0812••••890");
+    expect(maskPII("Budi Santoso", "name")).toBe("Budi S***");
   });
 });

@@ -630,6 +630,24 @@ export const api = {
                 merged.push(lb)
               }
             }
+            // Sinkronkan seluruh booking aktif lokal (termasuk status checked_in / Sedang Bermain)
+            for (const b of d.bookings) {
+              if (isActiveBooking(b.status)) {
+                const exists = merged.some(
+                  (item) => item.court === b.court && item.date === b.date && item.time === b.time
+                )
+                if (!exists) {
+                  merged.push({
+                    court: b.court,
+                    date: b.date,
+                    time: b.time,
+                    duration: b.duration,
+                    kind: b.status === "confirmed" || b.status === "checked_in" ? ("booking" as const) : ("hold" as const),
+                    bookingId: b.id,
+                  })
+                }
+              }
+            }
             return merged
           }
         }
@@ -641,7 +659,14 @@ export const api = {
     return [
       ...d.bookings
         .filter((item) => isActiveBooking(item.status))
-        .map((item) => ({ court: item.court, date: item.date, time: item.time, duration: item.duration, kind: item.status === "confirmed" ? ("booking" as const) : ("hold" as const), bookingId: item.id })),
+        .map((item) => ({
+          court: item.court,
+          date: item.date,
+          time: item.time,
+          duration: item.duration,
+          kind: item.status === "confirmed" || item.status === "checked_in" ? ("booking" as const) : ("hold" as const),
+          bookingId: item.id,
+        })),
       ...localBlocks,
     ]
   },
@@ -688,7 +713,7 @@ export const api = {
               courtId: input.court,
               date: input.date,
               startTime: input.time,
-              userId: user.id,
+              userId: user.id.startsWith("usr-") ? undefined : user.id,
             }),
           })
           if (!lockRes.ok) {
@@ -741,7 +766,7 @@ export const api = {
             durationHours: input.duration / 60,
             customerName: user.name,
             customerContact: user.email || user.phone,
-            userId: user.id,
+            userId: user.id.startsWith("usr-") ? undefined : user.id,
             totalPrice: booking.total,
             code: booking.id,
           }),
@@ -1088,6 +1113,25 @@ export const api = {
       d.payments.unshift({ id: uid("pay"), bookingId: booking.id, gateway: "manual", gatewayRef: "KASIR", method: "cash", amount: booking.total, status: "success", createdAt: iso(), paidAt: iso() })
       audit(d, actor, `Booking manual ${booking.id} dibuat untuk ${booking.customerName}.`)
       commit()
+
+      if (typeof window !== "undefined") {
+        fetch("/api/bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            courtId: booking.court,
+            date: booking.date,
+            startTime: booking.time,
+            durationHours: booking.duration / 60,
+            customerName: booking.customerName,
+            customerContact: booking.customerContact,
+            totalPrice: booking.total,
+            code: booking.id,
+            source: "walk-in",
+          }),
+        }).catch(() => {})
+      }
+
       return structuredClone(booking)
     },
     async checkin(bookingId: string): Promise<Booking> {

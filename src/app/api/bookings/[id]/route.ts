@@ -31,7 +31,9 @@ export async function GET(
 
     return NextResponse.json({
       ...booking,
+      customerName: decryptPII(booking.customerName),
       customerContact: decryptPII(booking.customerContact),
+      cancelReason: booking.cancelReason ? decryptPII(booking.cancelReason) : null,
       status: effectiveStatus,
     });
   } catch (error: any) {
@@ -102,6 +104,7 @@ export async function PATCH(
       const updated = await prisma.booking.update({
         where: { id: booking.id },
         data: {
+          status: "CHECKED_IN",
           checkedInAt: new Date(),
         },
         include: {
