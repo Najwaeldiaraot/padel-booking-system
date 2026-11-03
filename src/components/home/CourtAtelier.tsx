@@ -12,11 +12,11 @@ import {
   money,
   today,
   useApp,
-} from "./club"
-import { CinematicReveal } from "./CinematicMotion"
-import { useContent, useLocale } from "./i18n"
-import { CustomSelect } from "../components/ui/CustomSelect"
-import { CustomDatePicker } from "../components/ui/CustomDatePicker"
+} from "@/lib/club"
+import { CinematicReveal } from "@/components/ui/CinematicMotion"
+import { useContent, useLocale } from "@/lib/i18n"
+import { CustomSelect } from "@/components/ui/CustomSelect"
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker"
 
 export function BookingDock() {
   const { club, date, setDate, busy } = useApp()

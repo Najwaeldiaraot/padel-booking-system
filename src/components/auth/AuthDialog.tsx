@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link } from "react-router"
 import { ArrowRight, Eye, EyeOff, LogOut, MailCheck } from "lucide-react"
-import { api, previewAccounts, type OtpChallenge } from "./api"
-import { button, field, outlineButton, textLink, type User } from "./club"
-import { errorMessage, useLocale } from "./i18n"
-import { Modal, Spinner, formatCountdown, useCountdown } from "./ui"
+import { api, previewAccounts, type OtpChallenge } from "@/lib/api"
+import { button, field, outlineButton, textLink, type User } from "@/lib/club"
+import { errorMessage, useLocale } from "@/lib/i18n"
+import { Modal, Spinner, formatCountdown, useCountdown } from "@/components/ui"
 
 type Mode = "login" | "register" | "otp"
 

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react"
 import { ArrowUpRight, Check, Leaf, Plus, Settings2, ShieldCheck, Trash2, UserPlus } from "lucide-react"
-import { api } from "../api"
+import { api } from "@/lib/api"
 import {
   button,
   clock,
@@ -17,9 +17,9 @@ import {
   type Court,
   type Facility,
   type Venue,
-} from "../club"
-import { errorMessage, policyLines } from "../i18n"
-import { Spinner } from "../ui"
+} from "@/lib/club"
+import { errorMessage, policyLines } from "@/lib/i18n"
+import { Spinner } from "@/components/ui"
 import { LuxurySelect } from "./CustomUI"
 import { AdminDialog, Empty, Panel, id, useAdmin } from "./shared"
 import { TestingModeCard } from "./Operations"

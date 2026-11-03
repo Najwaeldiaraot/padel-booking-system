@@ -10,7 +10,7 @@ import {
   outlineButton,
   type Booking,
   type Venue,
-} from "./club";
+} from "@/lib/club";
 
 interface InvoiceModalProps {
   booking: Booking | null;

@@ -2,10 +2,10 @@ import { useEffect, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import { Link } from "react-router"
 import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Clock3, MapPin, Star } from "lucide-react"
-import { button, clock, courtShortName, eyebrow, outlineButton, ratingSummary, useApp } from "./club"
-import { WhatsAppHelp } from "./BookingSupport"
-import { useContent, useLocale } from "./i18n"
-import { Modal } from "./ui"
+import { button, clock, courtShortName, eyebrow, outlineButton, ratingSummary, useApp } from "@/lib/club"
+import { WhatsAppHelp } from "@/components/booking/BookingSupport"
+import { useContent, useLocale } from "@/lib/i18n"
+import { Modal } from "@/components/ui"
 
 export function ClubIntroduction() {
   const { club } = useApp()

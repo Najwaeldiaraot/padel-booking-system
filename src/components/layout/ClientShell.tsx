@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation"
 import { Link, useLocation } from "react-router"
 import { ArrowRight, ArrowUpRight, CheckCircle2, Menu, X } from "lucide-react"
 import { motion, MotionConfig } from "motion/react"
-import { api, subscribe } from "@/app/api"
-import { cinematicEase } from "@/app/CinematicMotion"
-import AuthDialog from "@/app/AuthDialog"
-import { BookingPolicyNotice } from "@/app/BookingSupport"
-import { NotificationsMenu } from "@/app/BookingParts"
+import { api, subscribe } from "@/lib/api"
+import { cinematicEase } from "@/components/ui/CinematicMotion"
+import AuthDialog from "@/components/auth/AuthDialog"
+import { BookingPolicyNotice } from "@/components/booking/BookingSupport"
+import { NotificationsMenu } from "@/components/booking/BookingParts"
 import {
   AppContext,
   button,
@@ -24,9 +24,9 @@ import {
   type ClubConfig,
   type PublicReview,
   type User,
-} from "@/app/club"
-import { LanguageSwitch, LocaleProvider, notificationText, useContent, useLocale } from "@/app/i18n"
-import { ErrorState, Modal, PageLoader } from "@/app/ui"
+} from "@/lib/club"
+import { LanguageSwitch, LocaleProvider, notificationText, useContent, useLocale } from "@/lib/i18n"
+import { ErrorState, Modal, PageLoader } from "@/components/ui"
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const { t, locale } = useLocale()

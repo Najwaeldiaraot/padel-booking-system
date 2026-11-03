@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { ArrowDown, ArrowUpRight, ChevronLeft, ChevronRight, Clock3, MapPin, Pause, Play, Star, Sun } from "lucide-react"
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
-import { CinematicReveal, cinematicEase } from "./CinematicMotion"
-import { clock, eyebrow, lightButton, ratingSummary, useApp } from "./club"
+import { CinematicReveal, cinematicEase } from "@/components/ui/CinematicMotion"
+import { clock, eyebrow, lightButton, ratingSummary, useApp } from "@/lib/club"
 import CourtAtelier, { BookingDock } from "./CourtAtelier"
-import ClubQuestions from "./BookingSupport"
+import ClubQuestions from "@/components/booking/BookingSupport"
 import { ClubIntroduction, ClubLocation, ClubPromotion, PlayerStories, VenueGallery } from "./VenueMarketing"
-import { useContent, useLocale } from "./i18n"
-import { usePageTitle } from "./ui"
+import { useContent, useLocale } from "@/lib/i18n"
+import { usePageTitle } from "@/components/ui"
 
 export default function ClubHome() {
   const { club, reviews } = useApp()

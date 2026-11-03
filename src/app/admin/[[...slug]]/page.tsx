@@ -1,6 +1,6 @@
 "use client";
 
-import AdminApp from "../AdminApp";
+import AdminApp from "@/components/admin/AdminApp";
 
 export default function AdminCatchAllPage() {
   return <AdminApp />;

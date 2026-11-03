@@ -3,29 +3,30 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router"
 import {
-  Activity,
   AlertTriangle,
   CheckCircle2,
   Clock,
   Grid2X2,
-  RefreshCw,
   RotateCcw,
   Search,
   Sliders,
   Timer,
   UserCheck,
 } from "lucide-react"
-import { api } from "../api"
+import { api } from "@/lib/api"
 import {
   button,
   dateLabel,
   endTime,
+  field,
   money,
   outlineButton,
   today,
+  useApp,
   type Booking,
-} from "../club"
-import { Spinner } from "../ui"
+} from "@/lib/club"
+import { Spinner } from "@/components/ui"
+import { LuxurySelect } from "./CustomUI"
 import { customerName, useAdmin } from "./shared"
 
 interface AdminLiveBoardProps {
@@ -89,10 +90,12 @@ function calculateCountdown(dateStr: string, startTimeStr: string, durationMinut
 
 export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
   const { bookings, reload, notify } = useAdmin()
+  const { club } = useApp()
   const [now, setNow] = useState<Date>(new Date())
   const [search, setSearch] = useState("")
+  const [courtFilter, setCourtFilter] = useState("all")
+  const [durationFilter, setDurationFilter] = useState("all")
   const [processingId, setProcessingId] = useState<string | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverCol, setDragOverCol] = useState<"waiting" | "playing" | "completed" | null>(null)
 
@@ -123,17 +126,38 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
 
   const todayStr = today()
 
-  // Filter booking hari ini (atau semua jika bypass aktif)
+  const courtOptions = useMemo(() => [
+    { value: "all", label: "Semua Lapangan" },
+    ...(club?.courtOptions || [
+      { id: "court-1", name: "Court 01 · Panoramic" },
+      { id: "court-2", name: "Court 02 · Garden" },
+      { id: "court-3", name: "Court 03 · Covered" },
+    ]).map((item) => ({ value: String(item.id), label: item.name })),
+  ], [club?.courtOptions])
+
+  // Filter booking hari ini (atau semua jika bypass aktif) dengan search, filter lapangan, dan filter durasi
   const activeBookings = useMemo(() => {
     const q = search.trim().toLowerCase()
     return bookings.filter((b) => {
       const matchDay = isBypass || b.date === todayStr || (b as any).manuallyReopened
       if (!matchDay) return false
+
+      if (courtFilter !== "all") {
+        const matchCourt =
+          String(b.court) === courtFilter ||
+          (b.courtName && b.courtName.toLowerCase().includes(courtFilter.toLowerCase()))
+        if (!matchCourt) return false
+      }
+
+      if (durationFilter !== "all") {
+        if (String(b.duration) !== durationFilter) return false
+      }
+
       if (!q) return true
       const fullText = `${b.id} ${customerName(b)} ${b.customerContact || ""} ${b.courtName}`.toLowerCase()
       return fullText.includes(q)
     })
-  }, [bookings, isBypass, todayStr, search])
+  }, [bookings, isBypass, todayStr, search, courtFilter, durationFilter])
 
   // Kolom 1: Menunggu Check-in (confirmed hari ini)
   const waitingList = useMemo(() => {
@@ -231,61 +255,53 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
     }
   }
 
-  const handleManualRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await reload()
-      notify("Data antrean lapangan berhasil diperbarui.")
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
-
-  const currentTimeStr = now.toLocaleTimeString("id-ID", {
-    timeZone: "Asia/Jakarta",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  })
-
   return (
     <div className="space-y-6">
-      {/* Header Bar: Status Real-time & Ringkasan */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-border bg-card p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center bg-forest-deep text-white">
-            <Activity size={18} strokeWidth={1.5} />
-          </div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="font-display text-xl">Live Queue Board</h2>
-            <span className="inline-flex items-center gap-1.5 border border-primary/20 bg-secondary px-2.5 py-0.5 text-2xs font-medium text-primary rounded-full">
-              <span className="size-1.5 rounded-full bg-forest-deep animate-pulse" />
-              LIVE {currentTimeStr} WIB
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-48">
-            <Search size={14} className="absolute top-3 left-3 text-muted-foreground" aria-hidden="true" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari pemain atau lapangan…"
-              className="w-full border border-border bg-background py-1.5 pr-3 pl-8 text-xs text-foreground focus:border-primary focus:outline-none"
-            />
-          </div>
+      {/* Filter Bar: Pencarian & Filter Dropdown (Sesuai Gaya Admin Bookings) */}
+      <div className="flex flex-wrap items-center gap-3 border border-border bg-card p-4">
+        <label className="relative min-w-52 flex-1">
+          <span className="sr-only">Cari booking</span>
+          <Search size={16} className="absolute top-3.5 left-3 text-muted-foreground" aria-hidden="true" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari pemain, kode, atau lapangan…"
+            className={`${field} min-h-11 pl-9`}
+          />
+        </label>
+        <LuxurySelect
+          ariaLabel="Filter Lapangan"
+          value={courtFilter}
+          onChange={(val) => setCourtFilter(String(val))}
+          options={courtOptions}
+          className="w-48"
+        />
+        <LuxurySelect
+          ariaLabel="Filter Durasi"
+          value={durationFilter}
+          onChange={(val) => setDurationFilter(String(val))}
+          options={[
+            { value: "all", label: "Semua Durasi" },
+            { value: "60", label: "60 Menit" },
+            { value: "90", label: "90 Menit" },
+            { value: "120", label: "120 Menit" },
+          ]}
+          className="w-40"
+        />
+        {(search || courtFilter !== "all" || durationFilter !== "all") && (
           <button
             type="button"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className={`${outlineButton} !min-h-9 text-xs gap-1.5`}
-            aria-label="Segarkan data antrean"
+            onClick={() => {
+              setSearch("")
+              setCourtFilter("all")
+              setDurationFilter("all")
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground underline px-1"
           >
-            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} /> Segarkan
+            Reset Filter
           </button>
-        </div>
+        )}
       </div>
 
       {/* Mode Testing Notice (High-contrast & Brand consistent) */}
@@ -326,17 +342,17 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               : "border-border bg-card"
           }`}
         >
-          <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
+          <header className="flex items-center justify-between border-b border-white/10 bg-forest-deep px-5 py-4 text-white">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center bg-secondary text-primary">
+              <span className="flex size-7 items-center justify-center bg-white/15 text-white">
                 <Clock size={15} />
               </span>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Menunggu Check-in</h3>
-                <p className="text-2xs text-muted-foreground">Booking terkonfirmasi siap main (Tarik ke sini untuk batal check-in)</p>
+                <h3 className="text-sm font-semibold text-white">Menunggu Check-in</h3>
+                <p className="text-2xs text-white/70">Booking terkonfirmasi siap main (Tarik ke sini untuk batal check-in)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
+            <span className="border border-white/20 bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white rounded-full">
               {waitingList.length}
             </span>
           </header>
@@ -437,23 +453,23 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               : "border-border bg-card"
           }`}
         >
-          <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
+          <header className="flex items-center justify-between border-b border-white/10 bg-forest-deep px-5 py-4 text-white">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center bg-forest-deep text-white">
+              <span className="flex size-7 items-center justify-center bg-white/15 text-white">
                 <Timer size={15} />
               </span>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-foreground">Sedang Bermain</h3>
-                  <span className="inline-flex items-center gap-1.5 bg-success-soft text-success-foreground px-2.5 py-0.5 text-2xs font-semibold rounded-full">
-                    <span className="size-1.5 rounded-full bg-success-foreground animate-pulse" />
+                  <h3 className="text-sm font-semibold text-white">Sedang Bermain</h3>
+                  <span className="inline-flex items-center gap-1.5 bg-white/20 text-white px-2.5 py-0.5 text-2xs font-semibold rounded-full">
+                    <span className="size-1.5 rounded-full bg-white animate-pulse" />
                     AKTIF
                   </span>
                 </div>
-                <p className="text-2xs text-muted-foreground">Pemain berada di lapangan (Tarik ke sini untuk check-in / kembalikan)</p>
+                <p className="text-2xs text-white/70">Pemain berada di lapangan (Tarik ke sini untuk check-in / kembalikan)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
+            <span className="border border-white/20 bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white rounded-full">
               {playingList.length}
             </span>
           </header>
@@ -603,17 +619,17 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               : "border-border bg-card"
           }`}
         >
-          <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
+          <header className="flex items-center justify-between border-b border-white/10 bg-forest-deep px-5 py-4 text-white">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center bg-forest-deep text-white">
+              <span className="flex size-7 items-center justify-center bg-white/15 text-white">
                 <CheckCircle2 size={15} />
               </span>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Selesai</h3>
-                <p className="text-2xs text-muted-foreground">Sesi tuntas & siap dirotasi (Tarik ke sini untuk selesai)</p>
+                <h3 className="text-sm font-semibold text-white">Selesai</h3>
+                <p className="text-2xs text-white/70">Sesi tuntas & siap dirotasi (Tarik ke sini untuk selesai)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
+            <span className="border border-white/20 bg-white/15 px-2.5 py-0.5 text-xs font-semibold text-white rounded-full">
               {completedList.length}
             </span>
           </header>

@@ -15,9 +15,9 @@ import {
   type Booking,
   type BookingStatus,
   type Venue,
-} from "./club"
-import { CustomDatePicker } from "../components/ui/CustomDatePicker"
-import { bookingStatusLabel, useContent, useLocale } from "./i18n"
+} from "@/lib/club"
+import { CustomDatePicker } from "@/components/ui/CustomDatePicker"
+import { bookingStatusLabel, useContent, useLocale } from "@/lib/i18n"
 
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {
   const { t } = useLocale()

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, QrCode, ShieldCheck, Sparkles } from "lucide-react"
-import { api } from "./api"
+import { api } from "@/lib/api"
 import {
   button,
   eyebrow,
@@ -13,11 +13,11 @@ import {
   type Booking,
   type Payment,
   type PaymentMethod,
-} from "./club"
+} from "@/lib/club"
 import { BookingPolicyNotice } from "./BookingSupport"
 import { BookingSummary } from "./BookingParts"
-import { errorMessage, useLocale } from "./i18n"
-import { ErrorState, PageLoader, Spinner, formatCountdown, useCountdown, usePageTitle } from "./ui"
+import { errorMessage, useLocale } from "@/lib/i18n"
+import { ErrorState, PageLoader, Spinner, formatCountdown, useCountdown, usePageTitle } from "@/components/ui"
 
 export default function CheckoutPage() {
   const { id = "" } = useParams()

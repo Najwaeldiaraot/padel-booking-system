@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getCourtAvailability } from "../../src/app/club";
+import { getCourtAvailability } from "@/lib/club";
 import {
   acquireSlotLock,
   releaseSlotLock,

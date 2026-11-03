@@ -1,9 +1,9 @@
 import { useId, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import { ArrowUpRight, ChevronDown, MessageCircle, ShieldCheck } from "lucide-react"
-import { cinematicEase } from "./CinematicMotion"
-import { eyebrow, normalizeWhatsAppNumber, outlineButton, useApp } from "./club"
-import { policyLines, useContent, useLocale } from "./i18n"
+import { cinematicEase } from "@/components/ui/CinematicMotion"
+import { eyebrow, normalizeWhatsAppNumber, outlineButton, useApp } from "@/lib/club"
+import { policyLines, useContent, useLocale } from "@/lib/i18n"
 
 export function BookingPolicyNotice() {
   const { club } = useApp()

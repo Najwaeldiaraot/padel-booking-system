@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import * as Popover from "@radix-ui/react-popover"
 import { Calendar as CalendarIcon, Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react"
-import { dateLabel, nextDay, today } from "../club"
+import { dateLabel, nextDay, today } from "@/lib/club"
 
 export interface SelectOption {
   value: string | number

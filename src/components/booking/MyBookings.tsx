@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
 import { ArrowRight, ArrowUpRight, CalendarDays, CalendarPlus, CheckCircle2, Copy, FileText, Mail, QrCode, Star } from "lucide-react"
 import { InvoiceModal } from "./InvoiceModal"
-import { api } from "./api"
+import { api } from "@/lib/api"
 import {
   button,
   courtShortName,
@@ -16,10 +16,10 @@ import {
   outlineButton,
   useApp,
   type Booking,
-} from "./club"
+} from "@/lib/club"
 import { BookingStatusBadge, BookingSummary, SlotPicker, downloadCalendar } from "./BookingParts"
-import { errorMessage, useLocale } from "./i18n"
-import { ErrorState, Modal, PageLoader, Spinner, usePageTitle } from "./ui"
+import { errorMessage, useLocale } from "@/lib/i18n"
+import { ErrorState, Modal, PageLoader, Spinner, usePageTitle } from "@/components/ui"
 
 export function ConfirmationPage() {
   const { id = "" } = useParams()

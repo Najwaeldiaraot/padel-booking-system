@@ -22,12 +22,12 @@ import {
   UsersRound,
   X,
 } from "lucide-react"
-import { api, previewAccounts, subscribe } from "../api"
-import { cinematicEase } from "../CinematicMotion"
-import { button, eyebrow, field, outlineButton, textLink, today, useApp, type Booking, type User } from "../club"
-import { NotificationsMenu } from "../BookingParts"
-import { errorMessage, notificationText } from "../i18n"
-import { PageLoader, Spinner, usePageTitle } from "../ui"
+import { api, previewAccounts, subscribe } from "@/lib/api"
+import { cinematicEase } from "@/components/ui/CinematicMotion"
+import { button, eyebrow, field, outlineButton, textLink, today, useApp, type Booking, type User } from "@/lib/club"
+import { NotificationsMenu } from "@/components/booking/BookingParts"
+import { errorMessage, notificationText } from "@/lib/i18n"
+import { PageLoader, Spinner, usePageTitle } from "@/components/ui"
 import { AdminContext, Empty, id, useAdmin, useAdminData } from "./shared"
 import AdminLiveBoard from "./AdminLiveBoard"
 import {

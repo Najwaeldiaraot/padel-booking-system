@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { api, subscribe } from "../api"
+import { api, subscribe } from "@/lib/api"
 import {
   dateLabel,
   getCourtAvailability,
@@ -15,8 +15,8 @@ import {
   type SlotBlock,
   type User,
   type Venue,
-} from "../club"
-import { Modal } from "../ui"
+} from "@/lib/club"
+import { Modal } from "@/components/ui"
 
 export interface AdminData {
   bookings: Booking[]

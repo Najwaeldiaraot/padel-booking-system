@@ -1,6 +1,6 @@
 "use client";
 
-import ClubHome from "./ClubHome";
+import ClubHome from "@/components/home/ClubHome";
 
 export default function HomePage() {
   return <ClubHome />;

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { ArrowDown, ArrowLeft, ArrowRight, Check, MapPin, Star, Sun } from "lucide-react"
 import { motion } from "motion/react"
-import { api } from "./api"
-import { cinematicEase } from "./CinematicMotion"
+import { api } from "@/lib/api"
+import { cinematicEase } from "@/components/ui/CinematicMotion"
 import {
   button,
   clock,
@@ -15,11 +15,11 @@ import {
   ratingSummary,
   today,
   useApp,
-} from "./club"
+} from "@/lib/club"
 import { BookingPolicyNotice } from "./BookingSupport"
 import { SlotPicker } from "./BookingParts"
-import { errorMessage, useContent, useLocale } from "./i18n"
-import { Spinner, usePageTitle } from "./ui"
+import { errorMessage, useContent, useLocale } from "@/lib/i18n"
+import { Spinner, usePageTitle } from "@/components/ui"
 
 export default function BookPage() {
   const { club, user, openAuth, date, setDate, reviews, refresh } = useApp()

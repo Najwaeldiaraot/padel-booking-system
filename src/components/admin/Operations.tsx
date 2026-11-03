@@ -19,7 +19,7 @@ import {
   Trash2,
   TrendingUp,
 } from "lucide-react"
-import { api } from "../api"
+import { api } from "@/lib/api"
 import {
   button,
   dangerButton,
@@ -37,9 +37,9 @@ import {
   today,
   useApp,
   type Booking,
-} from "../club"
-import { errorMessage } from "../i18n"
-import { ScrollArea, Spinner } from "../ui"
+} from "@/lib/club"
+import { errorMessage } from "@/lib/i18n"
+import { ScrollArea, Spinner } from "@/components/ui"
 import { LuxurySelect, LuxuryDatePicker } from "./CustomUI"
 import {
   AdminDialog,

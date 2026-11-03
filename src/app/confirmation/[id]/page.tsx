@@ -1,6 +1,6 @@
 "use client";
 
-import { ConfirmationPage } from "../../MyBookings";
+import { ConfirmationPage } from "@/components/booking/MyBookings";
 
 export default function ConfirmationRoute() {
   return <ConfirmationPage />;

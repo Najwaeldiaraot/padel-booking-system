@@ -7,7 +7,7 @@ import {
   Clock,
   QrCode,
 } from "lucide-react";
-import { api } from "../api";
+import { api } from "@/lib/api";
 import {
   button,
   dateLabel,
@@ -16,7 +16,7 @@ import {
   outlineButton,
   today,
   type Booking,
-} from "../club";
+} from "@/lib/club";
 
 interface AdminLiveOperationsProps {
   bookings: Booking[];
