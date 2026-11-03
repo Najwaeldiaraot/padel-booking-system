@@ -276,7 +276,7 @@ export function NotificationsMenu({
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-[min(380px,calc(100vw-32px))] border border-border bg-background text-foreground shadow-2xl">
+        <div className="fixed inset-x-4 top-20 sm:top-full sm:mt-2 sm:absolute sm:inset-x-auto sm:right-0 z-50 sm:w-[380px] border border-border bg-background text-foreground shadow-2xl">
           <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">{label}</span>

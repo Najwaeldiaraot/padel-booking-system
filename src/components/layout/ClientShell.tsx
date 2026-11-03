@@ -4,8 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Link, useLocation } from "react-router"
 import { ArrowRight, ArrowUpRight, CheckCircle2, Menu, X } from "lucide-react"
-import { MotionConfig } from "motion/react"
+import { motion, MotionConfig } from "motion/react"
 import { api, subscribe } from "@/app/api"
+import { cinematicEase } from "@/app/CinematicMotion"
 import AuthDialog from "@/app/AuthDialog"
 import { BookingPolicyNotice } from "@/app/BookingSupport"
 import { NotificationsMenu } from "@/app/BookingParts"
@@ -119,6 +120,19 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     setAuthOpen(true)
   }
 
+  const handleAnchorNav = (e: React.MouseEvent<HTMLAnchorElement>, to: string) => {
+    if (to.startsWith("/#") && isHome) {
+      e.preventDefault()
+      const targetId = to.slice(2)
+      const el = document.getElementById(targetId)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" })
+        window.history.pushState(null, "", to.slice(1))
+      }
+    }
+    setMobileMenu(false)
+  }
+
   const nav = [
     { to: "/#courts", label: t("Lapangan", "Courts") },
     { to: "/#facilities", label: t("Fasilitas", "Facilities") },
@@ -133,7 +147,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       value={{ ready, club: venue, busy, reviews, user, myBookings, notifications, date, setDate, refresh, openAuth, notify: setToast }}
     >
       <MotionConfig reducedMotion="user">
-        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4">
+        <a href="#main" suppressHydrationWarning className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4">
           {t("Ke konten utama", "Skip to content")}
         </a>
         {!isAdmin && (
@@ -147,7 +161,12 @@ function ShellContent({ children }: { children: React.ReactNode }) {
               </Link>
               <nav aria-label={t("Navigasi utama", "Main navigation")} className="hidden items-center gap-6 text-sm font-medium xl:flex">
                 {nav.map((item) => (
-                  <Link key={item.to} to={item.to} className="flex min-h-11 items-center underline-offset-8 transition hover:underline focus-visible:underline">
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={(e) => handleAnchorNav(e, item.to)}
+                    className="flex min-h-11 items-center underline-offset-8 transition hover:underline focus-visible:underline"
+                  >
                     {item.label}
                   </Link>
                 ))}
@@ -193,7 +212,12 @@ function ShellContent({ children }: { children: React.ReactNode }) {
                   className="absolute top-22 right-4 left-4 z-30 flex flex-col border border-border bg-background p-6 text-primary shadow-xl sm:left-auto sm:w-80 xl:hidden"
                 >
                   {nav.map((item) => (
-                    <Link key={item.to} to={item.to} className="flex min-h-12 items-center border-b border-border text-sm">
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={(e) => handleAnchorNav(e, item.to)}
+                      className="flex min-h-12 items-center border-b border-border text-sm"
+                    >
                       {item.label}
                     </Link>
                   ))}
@@ -216,8 +240,17 @@ function ShellContent({ children }: { children: React.ReactNode }) {
             />
           ) : !ready ? (
             <PageLoader label={t("Menyiapkan lapangan…", "Getting the courts ready…")} />
-          ) : (
+          ) : isAdmin ? (
             children
+          ) : (
+            <motion.div
+              key={pathname}
+              initial={isHome ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: cinematicEase }}
+            >
+              {children}
+            </motion.div>
           )}
         </main>
         {!isAdmin && ready && (

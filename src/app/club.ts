@@ -133,6 +133,8 @@ export interface Booking {
   holdExpiresAt?: number
   customerName?: string
   customerContact?: string
+  checkedInAt?: string
+  manuallyReopened?: boolean
   rating?: number
   review?: string
   reviewedAt?: string
@@ -414,7 +416,8 @@ export const startsAt = (date: string, time: string) =>
 export const hoursUntil = (date: string, time: string, now = Date.now()) =>
   (startsAt(date, time) - now) / 3600000
 
-export const courtShortName = (name: string) => name.replace(/^Court \d+ · /, "")
+export const courtShortName = (name: string) =>
+  name.replace(/^Court \d+\s*[·•—-]\s*/i, "").replace(/^Lapangan \d+\s*[·•—-]\s*/i, "")
 
 export const normalizeWhatsAppNumber = (value: string) =>
   value.replace(/[^\d]/g, "").replace(/^0/, "62")

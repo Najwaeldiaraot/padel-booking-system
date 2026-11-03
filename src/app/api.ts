@@ -231,7 +231,7 @@ function sweep(d: Db) {
         .filter((payment) => payment.bookingId === booking.id && payment.status === "pending")
         .forEach((payment) => (payment.status = "expired"))
       changed = true
-    } else if ((booking.status === "confirmed" || booking.status === "checked_in") && startsAt(booking.date, endTime(booking.time, booking.duration)) <= now) {
+    } else if (booking.status === "confirmed" && !(booking as any).manuallyReopened && startsAt(booking.date, endTime(booking.time, booking.duration)) <= now) {
       booking.status = "completed"
       booking.history.push(event("completed", "system", "Jadwal bermain selesai"))
       changed = true
@@ -1140,8 +1140,10 @@ export const api = {
       const actor = requireStaff(d)
       const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
       if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
-      if (booking.status !== "confirmed") throw new ApiError("invalid_input", "Hanya booking berstatus Terkonfirmasi yang dapat di-checkin.")
+      if (String(booking.status).toLowerCase() !== "confirmed") throw new ApiError("invalid_input", "Hanya booking berstatus Terkonfirmasi yang dapat di-checkin.")
       booking.status = "checked_in"
+      ;(booking as any).manuallyReopened = true
+      booking.checkedInAt = iso()
       booking.history.push(event("updated", actor.role === "owner" ? "owner" : "staff", "Pemain check-in di klub"))
       commit()
 
@@ -1158,9 +1160,10 @@ export const api = {
       await wait(150)
       const d = await db()
       const actor = requireStaff(d)
-      const booking = d.bookings.find((item) => item.id === bookingId)
+      const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
       if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
       booking.status = "completed"
+      delete (booking as any).manuallyReopened
       booking.history.push(event("completed", actor.role === "owner" ? "owner" : "staff", "Selesai bermain"))
       commit()
 
@@ -1179,8 +1182,9 @@ export const api = {
       const actor = requireStaff(d)
       const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
       if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
-      if (booking.status !== "checked_in") throw new ApiError("invalid_input", "Hanya booking sedang bermain yang dapat dibatalkan check-in.")
+      if (String(booking.status).toLowerCase() !== "checked_in") throw new ApiError("invalid_input", "Hanya booking sedang bermain yang dapat dibatalkan check-in.")
       booking.status = "confirmed"
+      delete (booking as any).manuallyReopened
       booking.history.push(event("updated", actor.role === "owner" ? "owner" : "staff", "Check-in dibatalkan, kembali menunggu"))
       commit()
 
@@ -1199,8 +1203,9 @@ export const api = {
       const actor = requireStaff(d)
       const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
       if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
-      if (booking.status !== "completed") throw new ApiError("invalid_input", "Hanya booking selesai yang dapat dikembalikan.")
+      if (String(booking.status).toLowerCase() !== "completed") throw new ApiError("invalid_input", "Hanya booking selesai yang dapat dikembalikan.")
       booking.status = "checked_in"
+      ;(booking as any).manuallyReopened = true
       booking.history.push(event("updated", actor.role === "owner" ? "owner" : "staff", "Status selesai dibatalkan, kembali ke lapangan"))
       commit()
 

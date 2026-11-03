@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
+import { motion } from "motion/react"
 import {
   Activity,
   ArrowRight,
@@ -22,6 +23,7 @@ import {
   X,
 } from "lucide-react"
 import { api, previewAccounts, subscribe } from "../api"
+import { cinematicEase } from "../CinematicMotion"
 import { button, eyebrow, field, outlineButton, textLink, today, useApp, type Booking, type User } from "../club"
 import { NotificationsMenu } from "../BookingParts"
 import { errorMessage, notificationText } from "../i18n"
@@ -180,7 +182,12 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
         ) : !allowed ? (
           <Empty title="Akses khusus pemilik." description="Halaman ini hanya tersedia untuk akun pemilik klub." action={<Link to="/admin" className={button}>Kembali ke ringkasan</Link>} />
         ) : (
-          <>
+          <motion.div
+            key={section}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: cinematicEase }}
+          >
             {section === "" && <Overview openDetail={setDetail} openOperation={openOperation} />}
             {section === "live-board" && <AdminLiveBoard openDetail={setDetail} />}
             {section === "bookings" && <BookingsSection openDetail={setDetail} />}
@@ -193,7 +200,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
             {section === "content" && <ContentSection />}
             {section === "settings" && <SettingsSection />}
             {section === "team" && <TeamSection />}
-          </>
+          </motion.div>
         )}
         <footer className="mt-8 flex flex-wrap justify-between gap-3 border-t border-border pt-5 text-2xs text-muted-foreground">
           <p>{club} · Manajemen klub</p>
@@ -250,21 +257,26 @@ function AdminFrame({
               <Link
                 to={`/admin${item.id ? `/${item.id}` : ""}`}
                 aria-current={section === item.id ? "page" : undefined}
-                className={`group relative my-0.5 flex min-h-11 items-center px-3 text-sm transition-colors ${
-                  section === item.id ? "bg-accent shadow-xs" : "hover:bg-white/5"
-                }`}
+                className="group relative my-0.5 flex min-h-11 items-center px-3 text-sm"
               >
+                {section === item.id && (
+                  <motion.span
+                    layoutId="activeAdminTab"
+                    className="absolute inset-0 bg-accent shadow-xs"
+                    transition={{ type: "spring", stiffness: 340, damping: 28 }}
+                  />
+                )}
                 <span className={`relative z-10 flex w-full items-center gap-3 transition-colors ${section === item.id ? "font-semibold text-primary" : "text-white/75 group-hover:text-white"}`}>
                   <item.icon size={17} strokeWidth={1.5} aria-hidden="true" />
                   {item.label}
                   {item.id === "live-board" && playingCount > 0 && (
-                    <span className={`ml-auto flex items-center gap-1 px-1.5 py-0.5 text-2xs font-bold ${section === item.id ? "bg-emerald-600/20 text-emerald-800" : "bg-emerald-500/25 text-emerald-300"}`} aria-label={`${playingCount} sesi aktif`}>
+                    <span className={`ml-auto flex items-center gap-1 px-2 py-0.5 text-2xs font-bold rounded-full ${section === item.id ? "bg-emerald-600/20 text-emerald-800" : "bg-emerald-500/25 text-emerald-300"}`} aria-label={`${playingCount} sesi aktif`}>
                       <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       {playingCount}
                     </span>
                   )}
                   {item.id === "bookings" && todayCount > 0 && (
-                    <span className={`ml-auto px-1.5 py-0.5 text-2xs ${section === item.id ? "bg-primary/10 text-primary font-bold" : "bg-white/15 text-white"}`} aria-label={`${todayCount} booking hari ini`}>
+                    <span className={`ml-auto px-2 py-0.5 text-2xs rounded-full ${section === item.id ? "bg-primary/10 text-primary font-bold" : "bg-white/15 text-white"}`} aria-label={`${todayCount} booking hari ini`}>
                       {todayCount}
                     </span>
                   )}

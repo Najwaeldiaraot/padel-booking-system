@@ -32,10 +32,25 @@ interface AdminLiveBoardProps {
   openDetail?: (booking: Booking) => void
 }
 
-function calculateCountdown(dateStr: string, startTimeStr: string, durationMinutes: number, now: Date) {
+function calculateCountdown(dateStr: string, startTimeStr: string, durationMinutes: number, now: Date, checkedInAt?: string) {
   const [endH, endM] = endTime(startTimeStr, durationMinutes).split(":").map(Number)
   const [bYear, bMonth, bDay] = dateStr.split("-").map(Number)
-  const endTarget = new Date(bYear, bMonth - 1, bDay, endH, endM, 0)
+  let endTarget = new Date(bYear, bMonth - 1, bDay, endH, endM, 0)
+
+  // Jika di-checkin di luar jadwal (misal mode testing/bypass untuk besok),
+  // sesuaikan target durasi bermain dari waktu check-in agar timer tetap realistis
+  if (checkedInAt) {
+    const checkinTime = new Date(checkedInAt).getTime()
+    if (!isNaN(checkinTime)) {
+      const durationMs = durationMinutes * 60 * 1000
+      const testModeEnd = new Date(checkinTime + durationMs)
+      // Jika scheduled end lebih dari 2 jam di masa depan dari checkin (bukan sesi hari ini), gunakan durasi checkin
+      if (endTarget.getTime() - now.getTime() > durationMs + 7200000) {
+        endTarget = testModeEnd
+      }
+    }
+  }
+
   const diffMs = endTarget.getTime() - now.getTime()
   const totalSeconds = Math.floor(diffMs / 1000)
 
@@ -112,7 +127,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
   const activeBookings = useMemo(() => {
     const q = search.trim().toLowerCase()
     return bookings.filter((b) => {
-      const matchDay = isBypass || b.date === todayStr
+      const matchDay = isBypass || b.date === todayStr || (b as any).manuallyReopened
       if (!matchDay) return false
       if (!q) return true
       const fullText = `${b.id} ${customerName(b)} ${b.customerContact || ""} ${b.courtName}`.toLowerCase()
@@ -123,21 +138,21 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
   // Kolom 1: Menunggu Check-in (confirmed hari ini)
   const waitingList = useMemo(() => {
     return activeBookings
-      .filter((b) => b.status === "confirmed")
+      .filter((b) => String(b.status).toLowerCase() === "confirmed")
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [activeBookings])
 
   // Kolom 2: Sedang Bermain (checked_in)
   const playingList = useMemo(() => {
     return activeBookings
-      .filter((b) => b.status === "checked_in")
+      .filter((b) => String(b.status).toLowerCase() === "checked_in")
       .sort((a, b) => a.time.localeCompare(b.time))
   }, [activeBookings])
 
   // Kolom 3: Selesai (completed hari ini)
   const completedList = useMemo(() => {
     return activeBookings
-      .filter((b) => b.status === "completed")
+      .filter((b) => String(b.status).toLowerCase() === "completed")
       .sort((a, b) => b.time.localeCompare(a.time))
   }, [activeBookings])
 
@@ -236,22 +251,17 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
   return (
     <div className="space-y-6">
       {/* Header Bar: Status Real-time & Ringkasan */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-border bg-card p-5">
-        <div className="flex items-center gap-3.5">
-          <div className="flex size-10 items-center justify-center bg-forest-deep text-white">
-            <Activity size={20} strokeWidth={1.5} />
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-border bg-card p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 items-center justify-center bg-forest-deep text-white">
+            <Activity size={18} strokeWidth={1.5} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-display text-2xl">Live Queue Board</h2>
-              <span className="inline-flex items-center gap-1.5 border border-primary/20 bg-secondary px-2 py-0.5 text-2xs font-medium text-primary">
-                <span className="size-1.5 bg-forest-deep animate-pulse" />
-                LIVE {currentTimeStr} WIB
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Pemantauan rotasi lapangan dan status antrean pertandingan hari ini ({dateLabel(todayStr, true)}).
-            </p>
+          <div className="flex items-center gap-2.5">
+            <h2 className="font-display text-xl">Live Queue Board</h2>
+            <span className="inline-flex items-center gap-1.5 border border-primary/20 bg-secondary px-2.5 py-0.5 text-2xs font-medium text-primary rounded-full">
+              <span className="size-1.5 rounded-full bg-forest-deep animate-pulse" />
+              LIVE {currentTimeStr} WIB
+            </span>
           </div>
         </div>
 
@@ -326,7 +336,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 <p className="text-2xs text-muted-foreground">Booking terkonfirmasi siap main (Tarik ke sini untuk batal check-in)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
               {waitingList.length}
             </span>
           </header>
@@ -435,15 +445,15 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-foreground">Sedang Bermain</h3>
-                  <span className="inline-flex items-center gap-1.5 bg-success-soft text-success-foreground px-2 py-0.5 text-2xs font-semibold">
-                    <span className="size-1.5 bg-success-foreground animate-pulse" />
+                  <span className="inline-flex items-center gap-1.5 bg-success-soft text-success-foreground px-2.5 py-0.5 text-2xs font-semibold rounded-full">
+                    <span className="size-1.5 rounded-full bg-success-foreground animate-pulse" />
                     AKTIF
                   </span>
                 </div>
                 <p className="text-2xs text-muted-foreground">Pemain berada di lapangan (Tarik ke sini untuk check-in / kembalikan)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
               {playingList.length}
             </span>
           </header>
@@ -457,7 +467,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               </div>
             ) : (
               playingList.map((b) => {
-                const countdown = calculateCountdown(b.date, b.time, b.duration, now)
+                const countdown = calculateCountdown(b.date, b.time, b.duration, now, (b as any).checkedInAt)
                 return (
                   <article
                     key={b.id}
@@ -595,7 +605,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
         >
           <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
             <div className="flex items-center gap-2.5">
-              <span className="flex size-7 items-center justify-center bg-secondary text-primary">
+              <span className="flex size-7 items-center justify-center bg-forest-deep text-white">
                 <CheckCircle2 size={15} />
               </span>
               <div>
@@ -603,7 +613,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 <p className="text-2xs text-muted-foreground">Sesi tuntas & siap dirotasi (Tarik ke sini untuk selesai)</p>
               </div>
             </div>
-            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
+            <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground rounded-full">
               {completedList.length}
             </span>
           </header>
@@ -655,7 +665,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                       type="button"
                       disabled={processingId === b.id}
                       onClick={() => handleUndoComplete(b.id)}
-                      className={`${outlineButton} !min-h-8 px-2.5 text-2xs gap-1.5`}
+                      className="inline-flex min-h-8 items-center justify-center gap-1.5 border border-border bg-white px-2.5 text-2xs font-medium text-foreground shadow-2xs hover:bg-surface hover:border-primary/50 transition-colors"
                       title="Kembalikan ke kolom Sedang Bermain"
                     >
                       <RotateCcw size={11} /> Kembalikan ke Lapangan

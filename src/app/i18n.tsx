@@ -26,13 +26,17 @@ const LocaleContext = createContext<{
 }>({ locale: "id", setLocale: () => {} })
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => {
+  const [locale, setLocale] = useState<Locale>("id")
+
+  useEffect(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "id"
-    } catch {
-      return "id"
-    }
-  })
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved === "en" || saved === "id") {
+        setLocale(saved)
+      }
+    } catch {}
+  }, [])
+
   useEffect(() => {
     document.documentElement.lang = locale
     try {

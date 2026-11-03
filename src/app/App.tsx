@@ -8,8 +8,9 @@ import {
   useLocation,
 } from "react-router"
 import { ArrowRight, ArrowUpRight, CheckCircle2, Menu, X } from "lucide-react"
-import { MotionConfig } from "motion/react"
+import { motion, MotionConfig } from "motion/react"
 import { api, subscribe } from "./api"
+import { cinematicEase } from "./CinematicMotion"
 import ClubHome from "./ClubHome"
 import BookPage from "./BookPage"
 import CheckoutPage from "./CheckoutPage"
@@ -124,6 +125,19 @@ function Root() {
     setMobileMenu(false)
     setAuthOpen(true)
   }
+  const handleAnchorNav = (e: React.MouseEvent<HTMLAnchorElement>, to: string) => {
+    if (to.startsWith("/#") && isHome) {
+      e.preventDefault()
+      const targetId = to.slice(2)
+      const el = document.getElementById(targetId)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" })
+        window.history.pushState(null, "", to.slice(1))
+      }
+    }
+    setMobileMenu(false)
+  }
+
   const nav = [
     { to: "/#courts", label: t("Lapangan", "Courts") },
     { to: "/#facilities", label: t("Fasilitas", "Facilities") },
@@ -151,7 +165,12 @@ function Root() {
               </Link>
               <nav aria-label={t("Navigasi utama", "Main navigation")} className="hidden items-center gap-6 text-sm font-medium xl:flex">
                 {nav.map((item) => (
-                  <Link key={item.to} to={item.to} className="flex min-h-11 items-center underline-offset-8 transition hover:underline focus-visible:underline">
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={(e) => handleAnchorNav(e, item.to)}
+                    className="flex min-h-11 items-center underline-offset-8 transition hover:underline focus-visible:underline"
+                  >
                     {item.label}
                   </Link>
                 ))}
@@ -198,7 +217,12 @@ function Root() {
                   className="absolute top-22 right-4 left-4 z-30 flex flex-col border border-border bg-background p-6 text-primary shadow-xl sm:left-auto sm:w-80 xl:hidden"
                 >
                   {nav.map((item) => (
-                    <Link key={item.to} to={item.to} className="flex min-h-12 items-center border-b border-border text-sm">
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={(e) => handleAnchorNav(e, item.to)}
+                      className="flex min-h-12 items-center border-b border-border text-sm"
+                    >
                       {item.label}
                     </Link>
                   ))}
@@ -221,8 +245,17 @@ function Root() {
             />
           ) : !ready ? (
             <PageLoader label={t("Menyiapkan lapangan…", "Getting the courts ready…")} />
-          ) : (
+          ) : isAdmin ? (
             <Outlet />
+          ) : (
+            <motion.div
+              key={location.pathname}
+              initial={isHome ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: cinematicEase }}
+            >
+              <Outlet />
+            </motion.div>
           )}
         </main>
         {!isAdmin && ready && (
