@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
 import { motion, useReducedMotion } from "motion/react"
 import {
+  Activity,
   ArrowRight,
   CalendarDays,
   Clock3,
@@ -28,6 +29,7 @@ import { NotificationsMenu } from "../BookingParts"
 import { errorMessage, notificationText } from "../i18n"
 import { PageLoader, Spinner, usePageTitle } from "../ui"
 import { AdminContext, Empty, id, useAdmin, useAdminData } from "./shared"
+import AdminLiveBoard from "./AdminLiveBoard"
 import {
   BookingDetailDialog,
   BookingsSection,
@@ -42,6 +44,7 @@ import { ContentSection, CourtsSection, FacilitiesSection, SettingsSection, Team
 
 const navigation = [
   { id: "", label: "Ringkasan", icon: LayoutDashboard, group: "Operasional", owner: false, description: "Satu tempat untuk menjaga permainan, pemain, dan klub tetap berjalan." },
+  { id: "live-board", label: "Live Board", icon: Activity, owner: false, description: "Papan antrean dan pemantauan pertandingan langsung hari ini secara real-time." },
   { id: "bookings", label: "Booking", icon: CalendarDays, owner: false, description: "Cari, filter, dan kelola seluruh booking klub." },
   { id: "schedule", label: "Jadwal lapangan", icon: Clock3, owner: false, description: "Atur ketersediaan lapangan, booking manual, dan waktu perawatan." },
   { id: "customers", label: "Pemain", icon: Users, owner: false, description: "Direktori pemain berdasarkan riwayat booking." },
@@ -174,7 +177,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
             <h1 className="font-display text-5xl leading-none">{section === "" ? "Rally yang baik dimulai di sini." : active?.label || "Halaman tidak ditemukan"}</h1>
             {active && <p className="mt-3 text-sm leading-6 text-muted-foreground">{active.description}</p>}
           </div>
-          {allowed && ["", "bookings", "schedule"].includes(section) && (
+          {allowed && ["", "live-board", "bookings", "schedule"].includes(section) && (
             <div className="flex flex-wrap gap-2">
               {section === "schedule" && <button type="button" className={outlineButton} onClick={() => openOperation("block")}><LockKeyhole size={14} /> Blokir slot</button>}
               <button type="button" className={button} onClick={() => openOperation("booking")}><Plus size={16} /> Booking manual</button>
@@ -188,6 +191,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
         ) : (
           <>
             {section === "" && <Overview openDetail={setDetail} openOperation={openOperation} />}
+            {section === "live-board" && <AdminLiveBoard openDetail={setDetail} />}
             {section === "bookings" && <BookingsSection openDetail={setDetail} />}
             {section === "schedule" && <ScheduleSection openDetail={setDetail} openOperation={openOperation} />}
             {section === "customers" && <CustomersSection />}
@@ -232,6 +236,7 @@ function AdminFrame({
 }) {
   const { notifications, bookings } = useAdmin()
   const todayCount = bookings.filter((item) => item.date === today() && item.status === "confirmed").length
+  const playingCount = bookings.filter((item) => item.status === "checked_in").length
   useEffect(() => {
     if (!menu) return
     const onKey = (event: KeyboardEvent) => event.key === "Escape" && setMenu(false)
@@ -266,6 +271,12 @@ function AdminFrame({
                 <span className={`relative z-10 flex w-full items-center gap-3 transition-colors ${section === item.id ? "font-semibold text-primary" : "text-white/75 group-hover:text-white"}`}>
                   <item.icon size={17} strokeWidth={1.5} aria-hidden="true" />
                   {item.label}
+                  {item.id === "live-board" && playingCount > 0 && (
+                    <span className={`ml-auto flex items-center gap-1 px-1.5 py-0.5 text-2xs font-bold ${section === item.id ? "bg-emerald-600/20 text-emerald-800" : "bg-emerald-500/25 text-emerald-300"}`} aria-label={`${playingCount} sesi aktif`}>
+                      <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {playingCount}
+                    </span>
+                  )}
                   {item.id === "bookings" && todayCount > 0 && (
                     <span className={`ml-auto px-1.5 py-0.5 text-2xs ${section === item.id ? "bg-primary/10 text-primary font-bold" : "bg-white/15 text-white"}`} aria-label={`${todayCount} booking hari ini`}>
                       {todayCount}

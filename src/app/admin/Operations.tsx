@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpRight,
+  CalendarDays,
   Check,
   CreditCard,
   Eye,
@@ -12,9 +13,11 @@ import {
   MessageSquare,
   Plus,
   Search,
+  ShieldCheck,
+  Sliders,
   Star,
+  Trash2,
   TrendingUp,
-  CalendarDays,
 } from "lucide-react"
 import { api } from "../api"
 import {
@@ -55,6 +58,85 @@ import {
 import { AdminLiveOperations } from "./AdminLiveOperations"
 
 /* ---------- Shared building blocks ---------- */
+
+export function useDebounce<T>(value: T, delay = 400): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+    return () => clearTimeout(handler)
+  }, [value, delay])
+  return debouncedValue
+}
+
+export function TestingModeCard() {
+  const { notify } = useAdmin()
+  const [bypassMode, setBypassMode] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("padel_bypass_checkin_mode") === "true"
+    }
+    return false
+  })
+
+  const toggleBypass = () => {
+    const next = !bypassMode
+    setBypassMode(next)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("padel_bypass_checkin_mode", String(next))
+      window.dispatchEvent(new Event("storage"))
+    }
+    notify(
+      next
+        ? "Mode Testing Aktif: Check-in dapat dilakukan kapan saja tanpa batasan tanggal/jam."
+        : "Mode Normal Aktif: Check-in dibatasi ketat sesuai jadwal hari ini dan jam bermain."
+    )
+  }
+
+  return (
+    <Panel>
+      <div className="p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center bg-secondary text-primary">
+              <Sliders size={20} strokeWidth={1.5} aria-hidden="true" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-xl">Mode Testing (Bypass Check-in)</h3>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-2xs font-semibold ${bypassMode ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
+                  <ShieldCheck size={12} />
+                  {bypassMode ? "Bypass Aktif" : "Sesuai Jadwal"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {bypassMode
+                  ? "Staf dapat melakukan check-in dan rotasi pemain kapan saja tanpa batasan tanggal dan jam bermain."
+                  : "Check-in dibatasi ketat: hanya bisa dilakukan pada tanggal booking dan maksimal 30 menit sebelum jadwal mulai."}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={bypassMode}
+            aria-label="Toggle Mode Testing Bypass Check-in"
+            onClick={toggleBypass}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              bypassMode ? "bg-amber-500" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                bypassMode ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    </Panel>
+  )
+}
 
 function useMutation(onDone?: () => void) {
   const { notify, reload } = useAdmin()
@@ -273,7 +355,7 @@ export function OperationDialog({ kind, preset, close }: { kind: "booking" | "bl
 export function BookingDetailDialog({ booking, close }: { booking: Booking; close: () => void }) {
   const { club, busy: busySlots } = useApp()
   const { isOwner, payments, notify } = useAdmin()
-  const [mode, setMode] = useState<"view" | "move" | "edit" | "cancel">("view")
+  const [mode, setMode] = useState<"view" | "move" | "edit" | "cancel" | "delete">("view")
   const [court, setCourt] = useState(booking.court)
   const [date, setDate] = useState(booking.date)
   const [time, setTime] = useState("")
@@ -342,19 +424,20 @@ export function BookingDetailDialog({ booking, close }: { booking: Booking; clos
             className={`${button} w-full ${!isBypass && !isToday ? "bg-muted text-muted-foreground hover:bg-muted/80" : "bg-forest-dark hover:bg-forest text-white"} flex items-center justify-center gap-2`}
             onClick={() => {
               if (!isBypass && !isToday) {
-                notify(`⚠️ Jadwal booking ini adalah tanggal ${dateLabel(booking.date, true)} (${booking.time} WIB). Aktifkan toggle "Mode Testing" di Ringkasan jika ingin bypass check-in.`)
+                notify(`Jadwal booking ini adalah tanggal ${dateLabel(booking.date, true)} (${booking.time} WIB). Aktifkan Mode Testing di menu Pengaturan Klub jika ingin bypass check-in.`)
                 return
               }
               run(() => api.admin.checkin(booking.id), "Pemain berhasil check-in. Status kini: Sedang Bermain.")
             }}
             disabled={busy}
           >
-            {busy ? <Spinner className="text-white" /> : !isBypass && !isToday ? `⚡ Check-in Pemain (${dateLabel(booking.date, true)} — Butuh Mode Testing)` : "⚡ Check-in Pemain (Sedang Bermain)"}
+            {busy ? <Spinner className="text-white" /> : !isBypass && !isToday ? `Check-in Pemain (${dateLabel(booking.date, true)} — Butuh Mode Testing)` : "Check-in Pemain (Sedang Bermain)"}
           </button>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <button type="button" className={outlineButton} onClick={() => setMode("move")}>Pindahkan jadwal</button>
             <button type="button" className={outlineButton} onClick={() => setMode("edit")}>Edit data pemain</button>
             <button type="button" className={`${outlineButton} text-destructive`} onClick={() => setMode("cancel")}>Batalkan</button>
+            <button type="button" className={`${outlineButton} text-destructive flex items-center justify-center gap-1.5`} onClick={() => setMode("delete")}><Trash2 size={13} /> Hapus booking</button>
           </div>
         </div>
       )}
@@ -366,13 +449,19 @@ export function BookingDetailDialog({ booking, close }: { booking: Booking; clos
             onClick={() => run(() => api.admin.complete(booking.id), "Sesi bermain selesai. Lapangan siap dibersihkan / rotasi pemain.")}
             disabled={busy}
           >
-            {busy ? <Spinner className="text-white" /> : "✓ Tandai Sesi Selesai (Rotasi Pemain)"}
+            {busy ? <Spinner className="text-white" /> : <><Check size={15} /> Tandai Sesi Selesai (Rotasi Pemain)</>}
           </button>
-          <button type="button" className={`${outlineButton} w-full`} onClick={() => setMode("edit")}>Edit data pemain</button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" className={`${outlineButton} w-full`} onClick={() => setMode("edit")}>Edit data pemain</button>
+            <button type="button" className={`${outlineButton} w-full text-destructive flex items-center justify-center gap-1.5`} onClick={() => setMode("delete")}><Trash2 size={13} /> Hapus booking</button>
+          </div>
         </div>
       )}
-      {booking.status !== "confirmed" && booking.status !== "checked_in" && booking.status !== "cancelled" && mode === "view" && (
-        <button type="button" className={`${outlineButton} mt-6 w-full`} onClick={() => setMode("edit")}>Edit data pemain</button>
+      {booking.status !== "confirmed" && booking.status !== "checked_in" && mode === "view" && (
+        <div className="mt-6 flex flex-wrap gap-3">
+          {booking.status !== "cancelled" && <button type="button" className={`${outlineButton} flex-1`} onClick={() => setMode("edit")}>Edit data pemain</button>}
+          <button type="button" className={`${outlineButton} text-destructive flex items-center justify-center gap-1.5`} onClick={() => setMode("delete")}><Trash2 size={13} /> Hapus booking</button>
+        </div>
       )}
       {mode === "move" && (
         <form className="mt-6 space-y-4 border-t border-border pt-5" onSubmit={(event) => { event.preventDefault(); run(() => api.admin.rescheduleBooking(booking.id, { court, date, time }), "Jadwal booking dipindahkan.") }}>
@@ -403,6 +492,29 @@ export function BookingDetailDialog({ booking, close }: { booking: Booking; clos
           {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-3"><button type="button" className={outlineButton} onClick={() => setMode("view")}>Pertahankan</button><button disabled={busy} className={`${dangerButton} flex-1`}>{busy ? <Spinner className="text-white" /> : "Batalkan booking"}</button></div>
         </form>
+      )}
+      {mode === "delete" && (
+        <div className="mt-6 space-y-4 border-t border-border pt-5">
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+            <h4 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+              <Trash2 size={16} /> Konfirmasi Hapus Booking
+            </h4>
+            <p className="mt-2 text-xs leading-6 text-foreground/80">
+              Apakah Anda yakin ingin menghapus booking <strong>{booking.id}</strong> atas nama <strong>{customerName(booking)}</strong>? Tindakan ini bersifat permanen dan data booking serta riwayat pembayaran akan dihapus dari sistem.
+            </p>
+          </div>
+          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-3">
+            <button type="button" className={outlineButton} onClick={() => setMode("view")}>Batal</button>
+            <button
+              disabled={busy}
+              className={`${dangerButton} flex-1 flex items-center justify-center gap-2`}
+              onClick={() => run(() => api.admin.deleteBooking(booking.id), "Booking berhasil dihapus secara permanen.")}
+            >
+              {busy ? <Spinner className="text-white" /> : <><Trash2 size={14} /> Hapus Permanen</>}
+            </button>
+          </div>
+        </div>
       )}
     </AdminDialog>
   )
@@ -540,6 +652,7 @@ export function BookingsSection({ openDetail }: { openDetail: (booking: Booking)
   const { bookings } = useAdmin()
   const [params] = useSearchParams()
   const [query, setQuery] = useState(params.get("q") || "")
+  const debouncedQuery = useDebounce(query, 400)
   const [status, setStatus] = useState("all")
   const [court, setCourt] = useState("all")
   const [from, setFrom] = useState("")
@@ -548,14 +661,14 @@ export function BookingsSection({ openDetail }: { openDetail: (booking: Booking)
     () =>
       bookings
         .filter((booking) =>
-          `${booking.id} ${customerName(booking)} ${booking.customerContact || ""} ${booking.courtName}`.toLowerCase().includes(query.toLowerCase()) &&
+          `${booking.id} ${customerName(booking)} ${booking.customerContact || ""} ${booking.courtName}`.toLowerCase().includes(debouncedQuery.toLowerCase()) &&
           (status === "all" || booking.status === status) &&
           (court === "all" || String(booking.court) === court) &&
           (!from || booking.date >= from) &&
           (!to || booking.date <= to),
         )
         .sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`)),
-    [bookings, query, status, court, from, to],
+    [bookings, debouncedQuery, status, court, from, to],
   )
   const dirty = query || status !== "all" || court !== "all" || from || to
   return (
@@ -645,12 +758,13 @@ export function TransactionsSection({ openDetail }: { openDetail: (booking: Book
   const [status, setStatus] = useState("all")
   const [method, setMethod] = useState("all")
   const [query, setQuery] = useState("")
+  const debouncedQuery = useDebounce(query, 400)
   const rows = payments
     .map((payment) => ({ payment, booking: bookings.find((item) => item.id === payment.bookingId) }))
     .filter(({ payment, booking }) =>
       (status === "all" || payment.status === status) &&
       (method === "all" || payment.method === method) &&
-      `${payment.gatewayRef} ${payment.bookingId} ${booking ? customerName(booking) : ""}`.toLowerCase().includes(query.toLowerCase()),
+      `${payment.gatewayRef} ${payment.bookingId} ${booking ? customerName(booking) : ""}`.toLowerCase().includes(debouncedQuery.toLowerCase()),
     )
     .sort((a, b) => b.payment.createdAt.localeCompare(a.payment.createdAt))
   const sum = (match: string) => payments.filter((item) => item.status === match).reduce((total, item) => total + (match === "refunded" ? item.refundedAmount || item.amount : item.amount), 0)
@@ -732,6 +846,10 @@ export function CustomersSection() {
   const { bookings } = useAdmin()
   const navigate = useNavigate()
   const [query, setQuery] = useState("")
+  const debouncedQuery = useDebounce(query, 400)
+  const [playerToDelete, setPlayerToDelete] = useState<{ name: string; count: number } | null>(null)
+  const { busy, error, run } = useMutation(() => setPlayerToDelete(null))
+
   const players = [...new Set(bookings.map(customerName))]
     .map((name) => {
       const history = bookings.filter((item) => customerName(item) === name)
@@ -743,7 +861,7 @@ export function CustomersSection() {
         last: history.map((item) => item.date).sort().at(-1),
       }
     })
-    .filter((player) => `${player.name} ${player.contact || ""}`.toLowerCase().includes(query.toLowerCase()))
+    .filter((player) => `${player.name} ${player.contact || ""}`.toLowerCase().includes(debouncedQuery.toLowerCase()))
     .sort((a, b) => (b.last || "").localeCompare(a.last || ""))
   return (
     <Panel>
@@ -758,18 +876,63 @@ export function CustomersSection() {
       {players.length ? (
         <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
           {players.map((player) => (
-            <div key={player.name} className="border border-border p-5">
-              <span className="flex size-11 items-center justify-center bg-secondary font-display text-2xl" aria-hidden="true">{player.name[0]}</span>
-              <h2 className="mt-4 text-sm font-medium">{player.name}</h2>
-              <p className="mt-2 text-xs text-muted-foreground">{player.history.length} booking · {money(player.spent)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{player.contact || "Kontak tidak dicatat"}</p>
-              {player.last && <p className="mt-1 text-2xs text-muted-foreground">Terakhir: {dateLabel(player.last, true)}</p>}
-              <button type="button" className={`${textLink} mt-3`} onClick={() => navigate(`/admin/bookings?q=${encodeURIComponent(player.name)}`)}>Lihat riwayat <ArrowUpRight size={14} /></button>
+            <div key={player.name} className="flex flex-col justify-between border border-border p-5">
+              <div>
+                <span className="flex size-11 items-center justify-center bg-secondary font-display text-2xl" aria-hidden="true">{player.name[0]}</span>
+                <h2 className="mt-4 text-sm font-medium">{player.name}</h2>
+                <p className="mt-2 text-xs text-muted-foreground">{player.history.length} booking · {money(player.spent)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{player.contact || "Kontak tidak dicatat"}</p>
+                {player.last && <p className="mt-1 text-2xs text-muted-foreground">Terakhir: {dateLabel(player.last, true)}</p>}
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3">
+                <button type="button" className={textLink} onClick={() => navigate(`/admin/bookings?q=${encodeURIComponent(player.name)}`)}>
+                  Lihat riwayat <ArrowUpRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-xs text-destructive transition-colors hover:underline"
+                  onClick={() => setPlayerToDelete({ name: player.name, count: player.history.length })}
+                >
+                  <Trash2 size={13} /> Hapus Pemain
+                </button>
+              </div>
             </div>
           ))}
         </div>
       ) : (
         <Empty title="Pemain belum ditemukan." description="Data pemain muncul setelah ada booking." />
+      )}
+      {playerToDelete && (
+        <AdminDialog title="Hapus Pemain" close={() => setPlayerToDelete(null)}>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                <Trash2 size={16} /> Konfirmasi Hapus Pemain
+              </h4>
+              <p className="mt-2 text-xs leading-6 text-foreground/80">
+                Apakah Anda yakin ingin menghapus data pemain <strong>{playerToDelete.name}</strong> beserta seluruh {playerToDelete.count} riwayat booking yang tersimpan? Tindakan ini bersifat permanen dan tidak dapat dibatalkan.
+              </p>
+            </div>
+            {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+            <div className="flex gap-3 pt-2">
+              <button type="button" className={outlineButton} onClick={() => setPlayerToDelete(null)}>
+                Batal
+              </button>
+              <button
+                disabled={busy}
+                className={`${dangerButton} flex-1 flex items-center justify-center gap-2`}
+                onClick={() =>
+                  run(
+                    () => api.admin.deleteCustomer(playerToDelete.name),
+                    `Data pemain ${playerToDelete.name} berhasil dihapus.`
+                  )
+                }
+              >
+                {busy ? <Spinner className="text-white" /> : <><Trash2 size={14} /> Hapus Pemain</>}
+              </button>
+            </div>
+          </div>
+        </AdminDialog>
       )}
     </Panel>
   )

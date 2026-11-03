@@ -1145,6 +1145,67 @@ export const api = {
       commit()
       return structuredClone(booking)
     },
+    async deleteBooking(id: string): Promise<void> {
+      await wait(180)
+      const d = await db()
+      const actor = requireStaff(d)
+      const booking = d.bookings.find((item) => item.id.toLowerCase() === id.trim().toLowerCase())
+      if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
+
+      d.bookings = d.bookings.filter((item) => item.id !== booking.id)
+      d.payments = d.payments.filter((item) => item.bookingId !== booking.id)
+      d.notifications = d.notifications.filter((item) => item.bookingId !== booking.id)
+      audit(d, actor, `Booking ${booking.id} (${booking.customerName}) telah dihapus.`)
+      commit()
+
+      if (typeof window !== "undefined") {
+        try {
+          await fetch(`/api/bookings/${encodeURIComponent(booking.id)}`, {
+            method: "DELETE",
+          })
+        } catch (err) {
+          console.warn("DELETE /api/bookings network error", err)
+        }
+      }
+    },
+    async deleteCustomer(identifier: string): Promise<void> {
+      await wait(180)
+      const d = await db()
+      const actor = requireStaff(d)
+      const normalized = identifier.trim().toLowerCase()
+
+      d.users = d.users.filter((item) => item.id.toLowerCase() !== normalized && item.name.toLowerCase() !== normalized)
+      d.credentials = d.credentials.filter((item) => item.userId.toLowerCase() !== normalized)
+
+      const targetBookings = d.bookings.filter(
+        (item) =>
+          item.userId?.toLowerCase() === normalized ||
+          (item.customerName && item.customerName.toLowerCase() === normalized) ||
+          (item.customerContact && item.customerContact.toLowerCase() === normalized)
+      )
+      const bookingIds = new Set(targetBookings.map((b) => b.id))
+
+      d.bookings = d.bookings.filter((item) => !bookingIds.has(item.id))
+      d.payments = d.payments.filter((item) => !bookingIds.has(item.bookingId))
+      d.notifications = d.notifications.filter(
+        (item) => !bookingIds.has(item.bookingId ?? "") && item.userId?.toLowerCase() !== normalized
+      )
+
+      audit(d, actor, `Data pemain ${identifier} dan ${bookingIds.size} booking terkait dihapus.`)
+      commit()
+
+      if (typeof window !== "undefined") {
+        for (const bid of bookingIds) {
+          try {
+            await fetch(`/api/bookings/${encodeURIComponent(bid)}`, {
+              method: "DELETE",
+            })
+          } catch {
+            // ignore
+          }
+        }
+      }
+    },
     async rescheduleBooking(id: string, slot: { court: number; date: string; time: string }): Promise<Booking> {
       await wait(200)
       const d = await db()

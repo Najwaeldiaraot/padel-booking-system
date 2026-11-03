@@ -152,3 +152,37 @@ export async function PATCH(
     );
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const booking = await prisma.booking.findFirst({
+      where: {
+        OR: [{ id }, { code: id }],
+      },
+    });
+
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    await prisma.booking.delete({
+      where: { id: booking.id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Booking deleted successfully",
+    });
+  } catch (error: any) {
+    console.error("[API Booking Detail DELETE] Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to delete booking" },
+      { status: 500 }
+    );
+  }
+}

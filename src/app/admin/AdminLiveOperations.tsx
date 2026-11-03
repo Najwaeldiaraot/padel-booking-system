@@ -6,8 +6,6 @@ import {
   CheckCircle2,
   Clock,
   QrCode,
-  Sliders,
-  Zap,
 } from "lucide-react";
 import { api } from "../api";
 import {
@@ -31,7 +29,7 @@ export function AdminLiveOperations({ bookings, reload, notify }: AdminLiveOpera
   const [scanCode, setScanCode] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Toggle Mode Testing (Bypass Jadwal)
+  // Status Mode Testing (Bypass Jadwal) dibaca dari Pengaturan Klub
   const [bypassMode, setBypassMode] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("padel_bypass_checkin_mode") === "true";
@@ -39,18 +37,15 @@ export function AdminLiveOperations({ bookings, reload, notify }: AdminLiveOpera
     return false;
   });
 
-  const toggleBypass = () => {
-    const next = !bypassMode;
-    setBypassMode(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("padel_bypass_checkin_mode", String(next));
-    }
-    notify(
-      next
-        ? "⚡ Mode Testing Aktif: Check-in dapat dilakukan kapan saja tanpa batasan tanggal/jam."
-        : "🔒 Mode Normal Aktif: Check-in dibatasi ketat sesuai jadwal hari ini dan jam bermain."
-    );
-  };
+  useEffect(() => {
+    const handleStorage = () => {
+      if (typeof window !== "undefined") {
+        setBypassMode(localStorage.getItem("padel_bypass_checkin_mode") === "true");
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const now = new Date();
   const currentHours = String(now.getHours()).padStart(2, "0");
@@ -83,7 +78,7 @@ export function AdminLiveOperations({ bookings, reload, notify }: AdminLiveOpera
       // 1. Validate date
       if (target.date !== todayStr) {
         notify(
-          `⚠️ Check-in ditolak: Jadwal booking adalah tanggal ${dateLabel(target.date, true)}. Aktifkan "Mode Testing" di atas jika ingin bypass jadwal.`
+          `Check-in ditolak: Jadwal booking adalah tanggal ${dateLabel(target.date, true)}. Aktifkan Mode Testing di menu Pengaturan Klub jika ingin bypass jadwal.`
         );
         return;
       }
@@ -101,7 +96,7 @@ export function AdminLiveOperations({ bookings, reload, notify }: AdminLiveOpera
 
       if (currentTimeStr < earlyTimeStr) {
         notify(
-          `⚠️ Belum masuk jadwal: Jadwal bermain pukul ${target.time} WIB (check-in dibuka mulai ${earlyTimeStr} WIB). Aktifkan "Mode Testing" jika ingin bypass.`
+          `Belum masuk jadwal: Jadwal bermain pukul ${target.time} WIB (check-in dibuka mulai ${earlyTimeStr} WIB). Aktifkan Mode Testing di menu Pengaturan Klub jika ingin bypass.`
         );
         return;
       }
@@ -200,40 +195,8 @@ export function AdminLiveOperations({ bookings, reload, notify }: AdminLiveOpera
           </div>
         </div>
 
-        {/* Kolom Kanan: Toggle Mode Testing & Tombol Scan Tiket */}
+        {/* Kolom Kanan: Tombol Scan Tiket */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Toggle Switch Sederhana: Mode Testing / Bypass */}
-          <div className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5">
-            <div className="text-left">
-              <div className="flex items-center gap-1.5">
-                <span className={`size-2 rounded-full ${bypassMode ? "bg-amber-500 animate-pulse" : "bg-muted-foreground/40"}`} />
-                <span className="text-2xs font-semibold text-foreground">
-                  Mode Testing {bypassMode ? "(Bypass Aktif)" : "(Sesuai Jadwal)"}
-                </span>
-              </div>
-              <p className="text-3xs text-muted-foreground">
-                {bypassMode ? "Bebas check-in kapan saja" : "Wajib sesuai jam & tanggal"}
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={bypassMode}
-              aria-label="Toggle Mode Testing Bypass Check-in"
-              onClick={toggleBypass}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                bypassMode ? "bg-amber-500" : "bg-muted"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block size-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                  bypassMode ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-
-          {/* Tombol Scan / Input Tiket */}
           <button
             type="button"
             onClick={() => setScanOpen(true)}

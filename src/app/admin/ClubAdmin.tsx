@@ -21,6 +21,7 @@ import {
 import { errorMessage, policyLines } from "../i18n"
 import { Spinner } from "../ui"
 import { AdminDialog, Empty, Panel, id, useAdmin } from "./shared"
+import { TestingModeCard } from "./Operations"
 
 const configOf = ({ courts: _courts, price: _price, type: _type, ...config }: Venue): ClubConfig => structuredClone(config)
 
@@ -464,6 +465,7 @@ export function SettingsSection() {
         </Panel>
       </div>
       <div className="space-y-5">
+        <TestingModeCard />
         <Panel>
           <div className="p-6">
             <ShieldCheck size={23} strokeWidth={1.3} aria-hidden="true" />

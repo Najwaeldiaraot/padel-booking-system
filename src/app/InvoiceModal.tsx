@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef } from "react";
-import { CheckCircle2, Download, Printer, QrCode, X } from "lucide-react";
+import { CheckCircle2, Printer, X, ShieldCheck } from "lucide-react";
 import {
   button,
   dateLabel,
@@ -25,8 +25,10 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
 
   if (!isOpen || !booking) return null;
 
-  const invoiceNumber = `INV/${booking.date.replace(/-/g, "")}/${booking.id}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(booking.id)}`;
+  const invoiceNumber = `INV/${booking.date.replace(/-/g, "")}/${booking.id.toUpperCase()}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+    booking.id
+  )}&margin=10`;
   const end = endTime(booking.time, booking.duration);
 
   const handlePrint = () => {
@@ -34,127 +36,201 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-xl border border-border bg-card shadow-2xl">
-        {/* Modal Top Bar */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4 print:hidden">
-          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-            <CheckCircle2 size={18} className="text-forest-muted" />
-            <span>E-Invoice & Bukti Pemesanan</span>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ticket-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B241C]/80 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200 print:static print:inset-auto print:bg-white print:p-0 print:block"
+    >
+      <div className="relative max-h-[94vh] w-full max-w-lg overflow-y-auto bg-[#F4F1EA] shadow-2xl border border-[#1C2621]/30 print:max-h-none print:w-full print:max-w-none print:overflow-visible print:border-none print:shadow-none print:bg-white">
+        {/* Top Control Bar (Hidden on print) */}
+        <div className="flex items-center justify-between border-b border-[#1C2621]/15 bg-[#1C2621] px-5 py-3 text-white print:hidden">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#F4F1EA]">
+            <CheckCircle2 size={16} className="text-[#C9D3B0]" />
+            <span>Official Pass & E-Invoice</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            aria-label="Tutup invoice"
+            className="flex size-7 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+            aria-label="Tutup tiket invoice"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        {/* Printable Invoice Container */}
-        <div ref={printRef} className="p-6 md:p-8 print:p-0">
-          {/* Header */}
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
-            <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-primary">
-                {venue.name}
-                <span className="text-sage">.</span>
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">{venue.address}</p>
-              <p className="text-xs text-muted-foreground">halo@rallypadel.club</p>
+        {/* Printable Ticket Stub Card */}
+        <div ref={printRef} className="relative p-6 sm:p-8 print:p-4 text-[#1C2621]">
+          {/* Ticket Header & Brand */}
+          <div className="border-b-2 border-[#1C2621] pb-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="font-mono text-2xs uppercase tracking-widest text-[#1C2621]/70 block mb-1">
+                  Rally Padel Club · Jakarta
+                </span>
+                <h2
+                  id="ticket-modal-title"
+                  className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-[#1C2621] leading-none"
+                >
+                  {venue.name}
+                  <span className="text-[#9B7058]">.</span>
+                </h2>
+                <p className="mt-1.5 text-xs text-[#1C2621]/75">{venue.address}</p>
+              </div>
+
+              {/* Luxury PAID Badge */}
+              <div className="flex flex-col items-end">
+                <div className="inline-flex items-center gap-1.5 border-2 border-[#1C2621] bg-[#1C2621] px-3 py-1 text-white">
+                  <ShieldCheck size={13} className="text-[#C9D3B0]" />
+                  <span className="font-mono text-2xs font-bold uppercase tracking-wider">
+                    LUNAS / PAID
+                  </span>
+                </div>
+                <span className="mt-1.5 font-mono text-2xs font-semibold text-[#1C2621]/70">
+                  {invoiceNumber}
+                </span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="inline-block rounded bg-success-soft px-3 py-1 font-mono text-2xs font-bold uppercase tracking-wider text-success-foreground">
-                LUNAS / PAID
+          </div>
+
+          {/* Ticket Body: Match & Booking Info */}
+          <div className="mt-5 space-y-4 text-xs">
+            {/* Court Highlight */}
+            <div className="border border-[#1C2621]/20 bg-white/70 p-3.5">
+              <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-1">
+                Lapangan Terpilih
               </span>
-              <p className="mt-2 font-mono text-xs font-semibold text-primary">{invoiceNumber}</p>
-              <p className="text-2xs text-muted-foreground">{booking.createdAt ? new Date(booking.createdAt).toLocaleDateString("id-ID") : booking.date}</p>
+              <div className="flex items-center justify-between">
+                <span className="font-display text-xl sm:text-2xl font-bold text-[#1C2621]">
+                  {booking.courtName}
+                </span>
+                <span className="font-mono text-xs font-semibold uppercase px-2 py-0.5 bg-[#1C2621]/10 text-[#1C2621]">
+                  {booking.duration} Menit
+                </span>
+              </div>
+            </div>
+
+            {/* Schedule Details Grid */}
+            <div className="grid grid-cols-2 gap-3 border border-[#1C2621]/20 bg-white/50 p-3.5">
+              <div>
+                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                  Tanggal Main
+                </span>
+                <span className="font-semibold text-sm text-[#1C2621]">
+                  {dateLabel(booking.date, false)}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                  Waktu (WIB)
+                </span>
+                <span className="font-semibold text-sm text-[#1C2621]">
+                  {booking.time} – {end}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-[#1C2621]/10">
+                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                  Nama Pemesan
+                </span>
+                <span className="font-medium text-xs text-[#1C2621] truncate block">
+                  {booking.customerName}
+                </span>
+              </div>
+              <div className="pt-2 border-t border-[#1C2621]/10 text-right">
+                <span className="text-2xs font-bold uppercase tracking-widest text-[#1C2621]/60 block mb-0.5">
+                  Kontak
+                </span>
+                <span className="font-mono text-xs text-[#1C2621]/80 truncate block">
+                  {booking.customerContact || "-"}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Customer & Booking Details */}
-          <div className="mt-6 grid grid-cols-2 gap-4 text-xs">
-            <div>
-              <p className={eyebrow}>Penyewa / Customer</p>
-              <p className="mt-1 font-semibold text-foreground text-sm">{booking.customerName}</p>
-              <p className="text-muted-foreground">{booking.customerContact || "-"}</p>
-            </div>
-            <div className="text-right">
-              <p className={eyebrow}>Kode Reservasi</p>
-              <p className="mt-1 font-mono text-base font-bold text-primary">{booking.id}</p>
-              <p className="text-muted-foreground">Sumber: {booking.source === "walk-in" ? "Kasir Klub" : "Online"}</p>
-            </div>
-          </div>
-
-          {/* Schedule Breakdown */}
-          <div className="mt-6 rounded-lg border border-border bg-secondary/50 p-4 text-xs">
-            <div className="flex justify-between py-1.5">
-              <span className="text-muted-foreground">Lapangan</span>
-              <span className="font-semibold text-foreground">{booking.courtName}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-t border-border/50">
-              <span className="text-muted-foreground">Tanggal Bermain</span>
-              <span className="font-semibold text-foreground">{dateLabel(booking.date, false)}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-t border-border/50">
-              <span className="text-muted-foreground">Jam Main (WIB)</span>
-              <span className="font-semibold text-foreground">{booking.time} – {end} ({booking.duration} menit)</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-t border-border/50">
-              <span className="text-muted-foreground">Status Tiket</span>
-              <span className="font-bold text-forest-muted uppercase">
-                {booking.status === "checked_in" ? "Sedang Bermain" : booking.status === "confirmed" ? "Terkonfirmasi" : booking.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Pricing Table */}
-          <div className="mt-6 border-t border-border pt-4">
-            <div className="flex justify-between text-xs py-1">
-              <span className="text-muted-foreground">Sewa Lapangan ({booking.duration} menit)</span>
-              <span className="font-medium">{money(booking.total)}</span>
-            </div>
-            <div className="flex justify-between text-xs py-1">
-              <span className="text-muted-foreground">Biaya Layanan & Pajak</span>
-              <span className="font-medium text-muted-foreground">Rp 0 (Termasuk)</span>
-            </div>
-            <div className="mt-3 flex justify-between border-t-2 border-primary pt-3 text-base font-bold">
-              <span>Total Pembayaran</span>
-              <span className="text-forest-muted">{money(booking.total)}</span>
-            </div>
-          </div>
-
-          {/* QR Code Section */}
-          <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 p-5 text-center">
-            <p className={`${eyebrow} text-primary mb-3`}>QR Code Tiket Masuk</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrUrl}
-              alt={`QR Tiket ${booking.id}`}
-              width={160}
-              height={160}
-              className="rounded-lg border border-border bg-white p-2 shadow-sm"
+          {/* PERFORATION LINE WITH NOTCHES */}
+          <div className="relative my-6 flex items-center justify-center">
+            {/* Left Notch */}
+            <div
+              aria-hidden="true"
+              className="absolute -left-6 sm:-left-8 size-6 rounded-r-full bg-[#0B241C] border-r border-[#1C2621]/40 print:hidden"
             />
-            <p className="mt-3 text-2xs text-muted-foreground max-w-xs leading-relaxed">
-              Tunjukkan QR Code ini ke petugas saat tiba di klub. Petugas akan memindai untuk check-in otomatis.
+            {/* Dashed Line */}
+            <div className="w-full border-t-2 border-dashed border-[#1C2621]/30" />
+            {/* Right Notch */}
+            <div
+              aria-hidden="true"
+              className="absolute -right-6 sm:-right-8 size-6 rounded-l-full bg-[#0B241C] border-l border-[#1C2621]/40 print:hidden"
+            />
+          </div>
+
+          {/* Ticket Admission Stub: High-Res QR Code */}
+          <div className="flex flex-col items-center justify-center border-2 border-[#1C2621] bg-white p-5 text-center shadow-inner">
+            <span className="font-mono text-2xs font-bold uppercase tracking-widest text-[#1C2621]/70 mb-2">
+              Passcode Akses Lapangan
+            </span>
+
+            {/* QR Code Container */}
+            <div className="p-2 border border-[#1C2621]/20 bg-white shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrUrl}
+                alt={`QR Code Tiket ${booking.id}`}
+                width={170}
+                height={170}
+                className="size-40 sm:size-44 object-contain"
+              />
+            </div>
+
+            {/* Big Booking Code for Manual Check-in */}
+            <div className="mt-3">
+              <span className="font-mono text-lg sm:text-xl font-extrabold tracking-widest text-[#1C2621] block">
+                {booking.id.toUpperCase()}
+              </span>
+              <p className="mt-1 text-2xs text-[#1C2621]/65 max-w-xs leading-relaxed">
+                Tunjukkan QR Code ini kepada petugas concierge klub saat tiba untuk verifikasi
+                check-in instan.
+              </p>
+            </div>
+          </div>
+
+          {/* Pricing & Settlement Breakdown */}
+          <div className="mt-5 border-t border-[#1C2621]/20 pt-4 text-xs">
+            <div className="flex justify-between py-1 text-[#1C2621]/75">
+              <span>Sewa Lapangan ({booking.duration} menit)</span>
+              <span className="font-mono font-medium">{money(booking.total)}</span>
+            </div>
+            <div className="flex justify-between py-1 text-[#1C2621]/75">
+              <span>Biaya Layanan & Pajak</span>
+              <span className="font-mono font-medium">Rp 0 (Termasuk)</span>
+            </div>
+            <div className="mt-2 flex justify-between border-t-2 border-[#1C2621] pt-2.5 text-base font-bold text-[#1C2621]">
+              <span className="font-display text-lg">Total Pembayaran</span>
+              <span className="font-mono text-lg">{money(booking.total)}</span>
+            </div>
+          </div>
+
+          {/* Ticket Footer Microprint */}
+          <div className="mt-6 border-t border-[#1C2621]/15 pt-3 text-center">
+            <p className="font-mono text-2xs uppercase tracking-wider text-[#1C2621]/50">
+              Rally Padel Club · Kebijakan pembatalan berlaku 24 jam sebelum jadwal · Concierge:
+              halo@rallypadel.club
             </p>
           </div>
         </div>
 
-        {/* Modal Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border bg-secondary/30 px-6 py-4 print:hidden">
+        {/* Action Buttons (Hidden when printing) */}
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#1C2621]/15 bg-[#1C2621]/5 px-6 py-4 print:hidden">
           <button
             type="button"
             onClick={onClose}
-            className={`${outlineButton} !min-h-10 text-xs`}
+            className={`${outlineButton} !min-h-10 text-xs border-[#1C2621]/30 text-[#1C2621] hover:bg-black/5`}
           >
             Tutup
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className={`${button} !min-h-10 text-xs`}
+            className={`${button} !min-h-10 text-xs bg-[#1C2621] text-white hover:bg-[#1C2621]/90 shadow-sm`}
           >
             <Printer size={15} /> Cetak / Unduh PDF
           </button>
@@ -163,3 +239,5 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
     </div>
   );
 }
+
+export default InvoiceModal;

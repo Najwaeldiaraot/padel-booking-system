@@ -25,77 +25,180 @@ export async function sendBookingInvoiceEmail(params: SendInvoiceEmailParams) {
     startTime,
     endTime,
     totalPrice,
-    paymentMethod = "QRIS (Midtrans)",
+    paymentMethod = "QRIS / Pembayaran Online",
     paymentTime = new Date().toLocaleString("id-ID"),
   } = params;
 
-  const invoiceNumber = `INV/${date.replace(/-/g, "")}/${bookingCode}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(bookingCode)}`;
+  // Ensure no "Midtrans" string leaks into the client-facing email
+  const displayPaymentMethod = paymentMethod
+    .replace(/\(?\s*midtrans\s*\)?/gi, "")
+    .trim() || "QRIS / Pembayaran Online";
 
-  const htmlContent = `
-<!DOCTYPE html>
-<html>
+  const invoiceNumber = `INV/${date.replace(/-/g, "")}/${bookingCode.toUpperCase()}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    bookingCode
+  )}&margin=8`;
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="utf-8">
-  <title>Invoice Pembayaran - ${bookingCode}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f4f6f5; color: #1c2621; padding: 24px; margin: 0; }
-    .card { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8e5; overflow: hidden; }
-    .header { background: #1c2621; color: #ffffff; padding: 28px 32px; }
-    .badge { display: inline-block; background: #22c55e; color: #ffffff; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; letter-spacing: 0.05em; }
-    .body { padding: 32px; }
-    .info-table { width: 100%; border-collapse: collapse; margin-top: 16px; margin-bottom: 24px; }
-    .info-table td { padding: 10px 0; border-bottom: 1px solid #f0f3f1; font-size: 14px; }
-    .info-table td.label { color: #64748b; width: 40%; }
-    .info-table td.value { font-weight: 600; text-align: right; }
-    .total-row { font-size: 18px; font-weight: 800; color: #1c2621; border-top: 2px solid #1c2621; }
-    .qr-section { background: #f9fbf9; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 20px; text-align: center; margin-top: 24px; }
-    .footer { text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiket & Invoice Reservasi - ${bookingCode}</title>
 </head>
-<body>
-  <div class="card">
-    <div class="header">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.02em;">Rally Padel Club.</h1>
-        <span class="badge">LUNAS / PAID</span>
-      </div>
-      <p style="margin: 6px 0 0 0; font-size: 13px; color: #cbd5e1;">Jl. Kemang Raya No. 18, Jakarta Selatan</p>
-    </div>
-    <div class="body">
-      <p style="margin: 0 0 6px 0; font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">E-Receipt & Bukti Pemesanan</p>
-      <h2 style="margin: 0 0 16px 0; font-size: 20px;">Hai, ${customerName}!</h2>
-      <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px 0;">
-        Pembayaran sewa lapangan Anda telah kami terima dan diverifikasi. Berikut rincian reservasi Anda:
-      </p>
+<body style="margin: 0; padding: 32px 12px; background-color: #EDEAE1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1C2621; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #EDEAE1;">
+    <tr>
+      <td align="center">
+        <!-- Main Ticket Card Container -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; background-color: #F4F1EA; border: 2px solid #1C2621; border-collapse: separate; box-shadow: 0 10px 25px rgba(28,38,33,0.12);">
+          <!-- Brand Header -->
+          <tr>
+            <td style="background-color: #1C2621; padding: 28px 32px; color: #FFFFFF;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="vertical-align: middle;">
+                    <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #C9D3B0; display: block; margin-bottom: 4px;">
+                      Official Match Pass
+                    </span>
+                    <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: #FFFFFF; font-family: Georgia, serif;">
+                      Rally Padel Club<span style="color: #9B7058;">.</span>
+                    </h1>
+                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #E2E8E5;">
+                      Jl. Kemang Raya No. 18, Jakarta Selatan
+                    </p>
+                  </td>
+                  <td align="right" style="vertical-align: middle;">
+                    <span style="display: inline-block; background-color: #2D3E35; color: #FFFFFF; border: 1px solid #C9D3B0; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 5px 12px; letter-spacing: 0.1em; font-family: monospace;">
+                      LUNAS / PAID
+                    </span>
+                    <span style="display: block; margin-top: 6px; font-size: 11px; font-family: monospace; color: #C9D3B0;">
+                      ${invoiceNumber}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-      <table class="info-table">
-        <tr><td class="label">No. Invoice</td><td class="value">${invoiceNumber}</td></tr>
-        <tr><td class="label">Kode Booking</td><td class="value" style="font-family: monospace; font-size: 15px;">${bookingCode}</td></tr>
-        <tr><td class="label">Lapangan</td><td class="value">${courtName}</td></tr>
-        <tr><td class="label">Jadwal Bermain</td><td class="value">${date} (${startTime} - ${endTime} WIB)</td></tr>
-        <tr><td class="label">Metode Pembayaran</td><td class="value">${paymentMethod}</td></tr>
-        <tr><td class="label">Waktu Pembayaran</td><td class="value">${paymentTime}</td></tr>
-        <tr class="total-row">
-          <td style="padding-top: 14px;">Total Dibayar</td>
-          <td style="padding-top: 14px; text-align: right; color: #166534;">Rp ${totalPrice.toLocaleString("id-ID")}</td>
-        </tr>
-      </table>
+          <!-- Top Stub: Greeting & Schedule Summary -->
+          <tr>
+            <td style="padding: 28px 32px 16px 32px;">
+              <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #7A866C;">
+                E-Tiket & Bukti Reservasi
+              </p>
+              <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #1C2621;">
+                Hai, ${customerName}!
+              </h2>
+              <p style="margin: 0 0 20px 0; font-size: 13px; line-height: 1.6; color: #475569;">
+                Pembayaran sewa lapangan Anda telah terverifikasi lunas. Tiket digital Anda telah aktif dan siap digunakan.
+              </p>
 
-      <div class="qr-section">
-        <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1c2621;">
-          Tunjukkan QR Code Ini Saat Tiba di Klub
-        </p>
-        <img src="${qrCodeUrl}" alt="QR Tiket ${bookingCode}" width="150" height="150" style="display: block; margin: 0 auto; border-radius: 4px;" />
-        <p style="margin: 10px 0 0 0; font-size: 12px; color: #64748b;">
-          Staf akan memindai kode ini untuk check-in instan. Mohon tiba 15 menit sebelum jadwal.
-        </p>
-      </div>
-    </div>
-    <div class="footer">
-      Rally Padel Club · Kemang, Jakarta Selatan · halo@rallypadel.club
-    </div>
-  </div>
+              <!-- Match Box Highlight -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border: 1px solid #E2E8E5; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #7A866C; display: block; margin-bottom: 4px;">
+                      Lapangan
+                    </span>
+                    <span style="font-size: 18px; font-weight: 800; color: #1C2621; font-family: Georgia, serif;">
+                      ${courtName}
+                    </span>
+                  </td>
+                  <td align="right" style="padding: 16px 20px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #7A866C; display: block; margin-bottom: 4px;">
+                      Waktu Main (WIB)
+                    </span>
+                    <span style="font-size: 15px; font-weight: 700; color: #1C2621;">
+                      ${startTime} – ${endTime}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Detailed Info Table -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 13px; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748B; border-bottom: 1px solid #E2E8E5;">Tanggal Bermain</td>
+                  <td align="right" style="padding: 8px 0; font-weight: 600; color: #1C2621; border-bottom: 1px solid #E2E8E5;">${date}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748B; border-bottom: 1px solid #E2E8E5;">Kode Booking</td>
+                  <td align="right" style="padding: 8px 0; font-family: monospace; font-weight: 700; color: #1C2621; border-bottom: 1px solid #E2E8E5;">${bookingCode}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748B; border-bottom: 1px solid #E2E8E5;">Metode Pembayaran</td>
+                  <td align="right" style="padding: 8px 0; font-weight: 600; color: #1C2621; border-bottom: 1px solid #E2E8E5;">${displayPaymentMethod}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748B; border-bottom: 1px solid #E2E8E5;">Waktu Transaksi</td>
+                  <td align="right" style="padding: 8px 0; font-weight: 500; color: #1C2621; border-bottom: 1px solid #E2E8E5;">${paymentTime}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 0 8px 0; font-size: 15px; font-weight: 800; color: #1C2621; border-top: 2px solid #1C2621;">Total Pembayaran</td>
+                  <td align="right" style="padding: 14px 0 8px 0; font-size: 17px; font-weight: 800; color: #1C2621; border-top: 2px solid #1C2621; font-family: monospace;">Rp ${totalPrice.toLocaleString("id-ID")}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Perforated Line Divider -->
+          <tr>
+            <td style="padding: 0 16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="border-top: 2px dashed #C5BEB0; height: 1px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Bottom Stub: Ticket Pass & High-Res QR Code -->
+          <tr>
+            <td style="padding: 24px 32px 32px 32px;" align="center">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border: 2px solid #1C2621; text-align: center;">
+                <tr>
+                  <td style="padding: 24px 20px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #7A866C; display: block; margin-bottom: 6px;">
+                      Passcode Tiket Masuk
+                    </span>
+                    <span style="font-size: 22px; font-weight: 800; font-family: monospace; letter-spacing: 0.12em; color: #1C2621; display: block; margin-bottom: 14px;">
+                      ${bookingCode.toUpperCase()}
+                    </span>
+
+                    <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E2E8E5; padding: 6px;">
+                      <tr>
+                        <td>
+                          <img src="${qrCodeUrl}" alt="QR Tiket ${bookingCode}" width="160" height="160" style="display: block; border: 0;" />
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin: 14px 0 0 0; font-size: 12px; line-height: 1.5; color: #64748B; max-width: 360px;">
+                      Tunjukkan QR Code ini kepada concierge atau staf saat tiba di klub untuk check-in instan. Mohon hadir 15 menit sebelum waktu bermain.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #EDEAE1; border-top: 1px solid #DCDED2; padding: 18px 24px; text-align: center;">
+              <p style="margin: 0; font-size: 11px; color: #7A866C; letter-spacing: 0.05em;">
+                Rally Padel Club · Kemang, Jakarta Selatan · halo@rallypadel.club
+              </p>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: #94A3B8;">
+                Email konfirmasi otomatis. Harap simpan bukti ini untuk kelancaran akses bermain Anda.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 `;

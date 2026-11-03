@@ -79,6 +79,8 @@ model Booking {
   code            String           @unique // e.g. RPC-20261103-8821
   userId          String?
   user            User?            @relation(fields: [userId], references: [id])
+  customerId      String?
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName    String
   customerContact String
   courtId         Int
@@ -161,4 +163,23 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+model Customer {
+  id              String    @id @default(cuid())
+  name            String
+  phone           String?   @unique
+  email           String?   @unique
+  phoneBlindIndex String?
+  emailBlindIndex String?
+  notes           String?
+  totalSpent      Int       @default(0)
+  totalBookings   Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  bookings        Booking[]
+
+  @@index([phoneBlindIndex])
+  @@index([emailBlindIndex])
+  @@map("customers")
 }

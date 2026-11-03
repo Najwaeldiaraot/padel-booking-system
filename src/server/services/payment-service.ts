@@ -3,10 +3,12 @@ import {
   createQrisTransaction,
   verifyMidtransSignature,
   type MidtransChargeParams,
+  midtransConfig,
 } from "@/lib/midtrans";
 import { releaseSlotLock } from "./slot-service";
 import { prisma } from "@/lib/prisma";
 import { sendBookingInvoiceEmail } from "./email-service";
+import { decryptPII } from "@/lib/encryption";
 
 export interface MidtransWebhookPayload {
   order_id: string;
@@ -130,18 +132,19 @@ export async function processMidtransWebhook(payload: MidtransWebhookPayload) {
         const [startH, startM] = booking.startTime.split(":").map(Number);
         const endHour = startH + booking.durationHours;
         const endTimeStr = `${String(endHour).padStart(2, "0")}:${String(startM || 0).padStart(2, "0")}`;
+        const rawContact = decryptPII(booking.customerContact || "");
 
         sendBookingInvoiceEmail({
           bookingId: booking.id,
           bookingCode: booking.code,
           customerName: booking.customerName,
-          customerEmail: booking.customerContact?.includes("@") ? booking.customerContact : "player@contoh.id",
+          customerEmail: rawContact.includes("@") ? rawContact : "player@contoh.id",
           courtName: booking.court.name,
           date: booking.date,
           startTime: booking.startTime,
           endTime: endTimeStr,
           totalPrice: booking.totalPrice,
-          paymentMethod: payment_type === "qris" ? "QRIS (Midtrans)" : payment_type || "Midtrans Online",
+          paymentMethod: payment_type === "qris" ? "QRIS" : payment_type ? payment_type.toUpperCase() : "Online Payment",
         }).catch((e) => console.warn("[Email Send Error]:", e));
       } else if (bookingState === "FAILED") {
         await prisma.booking.update({
@@ -178,5 +181,146 @@ export async function processMidtransWebhook(payload: MidtransWebhookPayload) {
     bookingState,
     orderId: order_id,
     transactionStatus: transaction_status,
+  };
+}
+
+export interface ProcessBookingRefundParams {
+  bookingId: string;
+  reason: string;
+  actor?: string;
+}
+
+export interface ProcessBookingRefundResult {
+  success: boolean;
+  booking: any;
+  refundAmount: number;
+  isEligibleForRefund: boolean;
+  cancelReason: string;
+  midtransRefund?: any;
+}
+
+/**
+ * Handles booking cancellation and refund processing based on policy:
+ * - >= 24 hours before game schedule: 100% refund
+ * - < 24 hours before game schedule: 0% refund (rejected)
+ * - If paid via QRIS / GoPay and Midtrans server key is active, triggers Midtrans Refund API
+ * - Updates booking status to CANCELLED with refundAmount and cancelReason in the database
+ */
+export async function processBookingRefund(
+  params: ProcessBookingRefundParams
+): Promise<ProcessBookingRefundResult> {
+  const { bookingId, reason, actor = "STAFF" } = params;
+
+  const booking = await prisma.booking.findFirst({
+    where: {
+      OR: [{ id: bookingId }, { code: bookingId }],
+    },
+    include: {
+      court: true,
+      payment: true,
+    },
+  });
+
+  if (!booking) {
+    throw new Error(`Booking tidak ditemukan untuk ID / Kode: ${bookingId}`);
+  }
+
+  // Calculate cancellation policy (>= 24 hours = 100%, < 24 hours = 0%)
+  const [startHours = 0, startMinutes = 0] = booking.startTime.split(":").map(Number);
+  const [year = 2026, month = 1, day = 1] = booking.date.split("-").map(Number);
+  const bookingStart = new Date(year, month - 1, day, startHours, startMinutes, 0);
+
+  const now = new Date();
+  const diffHours = (bookingStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  const isEligibleForRefund = diffHours >= 24;
+  const refundAmount = isEligibleForRefund ? booking.totalPrice : 0;
+
+  // Midtrans Refund API integration
+  let midtransRefundResult: any = null;
+  const isQrisOrGopay =
+    booking.payment?.paymentType === "qris" ||
+    booking.payment?.paymentType === "gopay";
+
+  if (isEligibleForRefund && refundAmount > 0 && isQrisOrGopay && midtransConfig.serverKey) {
+    const orderId = booking.code || booking.id;
+    const refundUrl = midtransConfig.isProduction
+      ? `https://api.midtrans.com/v2/${orderId}/refund`
+      : `https://api.sandbox.midtrans.com/v2/${orderId}/refund`;
+
+    try {
+      const authHeader = `Basic ${Buffer.from(`${midtransConfig.serverKey}:`).toString("base64")}`;
+      const response = await fetch(refundUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          refund_key: `ref-${orderId}-${Date.now()}`,
+          amount: refundAmount,
+          reason,
+        }),
+      });
+
+      midtransRefundResult = await response.json().catch(() => ({}));
+      console.log(`[Midtrans Refund API] Refund response for ${orderId}:`, midtransRefundResult);
+    } catch (err) {
+      console.warn(`[Midtrans Refund API] Error executing refund for ${orderId}:`, err);
+    }
+  }
+
+  // Update booking record in database
+  const updatedBooking = await prisma.booking.update({
+    where: { id: booking.id },
+    data: {
+      status: "CANCELLED",
+      refundAmount,
+      cancelReason: reason,
+      ...(booking.payment && {
+        payment: {
+          update: {
+            status: refundAmount > 0 ? "refund" : booking.payment.status,
+          },
+        },
+      }),
+    },
+    include: {
+      court: true,
+      payment: true,
+    },
+  });
+
+  // Record audit history
+  try {
+    await prisma.bookingHistory.create({
+      data: {
+        bookingId: booking.id,
+        fromStatus: booking.status,
+        toStatus: "CANCELLED",
+        action: "REFUND_CANCEL",
+        actorRole: actor,
+        note: `${reason} (${isEligibleForRefund ? `Refund 100% Rp ${refundAmount.toLocaleString("id-ID")}` : "Refund 0% / ditolak <24 jam"})`,
+      },
+    });
+  } catch (historyErr) {
+    console.warn("[BookingHistory Audit Error]:", historyErr);
+  }
+
+  // Release slot lock
+  try {
+    await releaseSlotLock(booking.courtId, booking.date, booking.startTime);
+  } catch (slotErr) {
+    console.warn("[SlotLock Release Error]:", slotErr);
+  }
+
+  return {
+    success: true,
+    booking: updatedBooking,
+    refundAmount,
+    isEligibleForRefund,
+    cancelReason: reason,
+    midtransRefund: midtransRefundResult,
   };
 }
