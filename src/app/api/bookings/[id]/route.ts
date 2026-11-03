@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decryptPII } from "@/lib/encryption";
 
 export async function GET(
   request: Request,
@@ -30,6 +31,7 @@ export async function GET(
 
     return NextResponse.json({
       ...booking,
+      customerContact: decryptPII(booking.customerContact),
       status: effectiveStatus,
     });
   } catch (error: any) {

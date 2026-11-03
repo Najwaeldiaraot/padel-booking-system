@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { broadcastSlotEvent } from "@/server/services/slot-service";
+import { encryptPII, decryptPII, generateBlindIndex } from "@/lib/encryption";
 
 function generateBookingCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
 
     const formattedBookings = bookings.map((b) => ({
       ...b,
+      customerContact: decryptPII(b.customerContact),
       status: b.checkedInAt && b.status === "CONFIRMED" ? "CHECKED_IN" : b.status,
     }));
 
@@ -120,12 +122,50 @@ export async function POST(request: Request) {
     const code = body.code || generateBookingCode();
     const holdExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    // Encrypt customer contact and link/create Customer record
+    const rawContact = (customerContact || "").trim();
+    const encryptedContact = rawContact ? encryptPII(rawContact) : "-";
+    let customerId: string | null = null;
+
+    if (rawContact && rawContact !== "-") {
+      const isEmail = rawContact.includes("@");
+      const blindIndex = generateBlindIndex(rawContact);
+
+      let customer = await prisma.customer.findFirst({
+        where: isEmail ? { emailBlindIndex: blindIndex } : { phoneBlindIndex: blindIndex },
+      });
+
+      if (!customer) {
+        customer = await prisma.customer.create({
+          data: {
+            name: customerName,
+            email: isEmail ? encryptPII(rawContact) : null,
+            emailBlindIndex: isEmail ? blindIndex : null,
+            phone: !isEmail ? encryptPII(rawContact) : null,
+            phoneBlindIndex: !isEmail ? blindIndex : null,
+            totalSpent: calculatedTotal,
+            totalBookings: 1,
+          },
+        });
+      } else {
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            totalSpent: { increment: calculatedTotal },
+            totalBookings: { increment: 1 },
+          },
+        });
+      }
+      customerId = customer.id;
+    }
+
     const newBooking = await prisma.booking.create({
       data: {
         code,
         userId: userId || null,
+        customerId,
         customerName,
-        customerContact: customerContact || "-",
+        customerContact: encryptedContact,
         courtId: Number(courtId),
         date,
         startTime,
