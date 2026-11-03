@@ -98,6 +98,11 @@ export interface User {
   role: Role
   isVerified: boolean
   createdAt: string
+  totalBookings?: number
+  lastBookingDate?: string | null
+  daysSinceLastVisit?: number | null
+  loyaltyTier?: string
+  favoriteCourt?: string | null
 }
 
 export type BookingStatus =

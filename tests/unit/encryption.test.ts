@@ -6,6 +6,10 @@ import {
   encryptJSON,
   decryptJSON,
   maskPII,
+  hashPassword,
+  verifyPassword,
+  createSessionToken,
+  verifySessionToken,
 } from "@/lib/encryption";
 
 describe("AES-256-GCM PII Encryption & Blind Index", () => {
@@ -115,5 +119,29 @@ describe("AES-256-GCM PII Encryption & Blind Index", () => {
     expect(maskPII("budi.santoso@example.com", "email")).toBe("b•••••@example.com");
     expect(maskPII("081234567890", "phone")).toBe("0812••••890");
     expect(maskPII("Budi Santoso", "name")).toBe("Budi S***");
+  });
+
+  it("hashes and verifies passwords securely", () => {
+    const rawPass = "MyPadelPass@2026";
+    const hashed = hashPassword(rawPass);
+
+    expect(hashed).toBeDefined();
+    expect(hashed).toContain(":");
+    expect(verifyPassword(rawPass, hashed)).toBe(true);
+    expect(verifyPassword("WrongPassword123", hashed)).toBe(false);
+  });
+
+  it("creates and verifies tamper-proof session tokens", () => {
+    const session = { id: "usr_123", email: "player@padel.com", role: "PLAYER" };
+    const token = createSessionToken(session);
+
+    expect(token).toBeDefined();
+    const verified = verifySessionToken(token);
+    expect(verified).not.toBeNull();
+    expect(verified?.id).toBe("usr_123");
+    expect(verified?.email).toBe("player@padel.com");
+    expect(verified?.role).toBe("PLAYER");
+
+    expect(verifySessionToken("tampered.invalid.token")).toBeNull();
   });
 });

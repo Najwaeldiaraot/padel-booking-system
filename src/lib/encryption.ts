@@ -128,3 +128,51 @@ export function maskPII(text: string, type: "email" | "phone" | "name" = "phone"
   }
   return text;
 }
+
+/**
+ * Hash password securely using PBKDF2 with SHA-512 and random salt.
+ */
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+  return `${salt}:${hash}`;
+}
+
+/**
+ * Verify plaintext password against stored salt:hash string.
+ */
+export function verifyPassword(password: string, storedHash: string): boolean {
+  if (!password || !storedHash) return false;
+  const parts = storedHash.split(":");
+  if (parts.length !== 2) return false;
+  const [salt, originalHash] = parts;
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, "sha512").toString("hex");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(originalHash, "hex"));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create encrypted tamper-proof session token with 30 days expiration.
+ */
+export function createSessionToken(payload: { id: string; email?: string | null; role: string }): string {
+  const sessionData = {
+    ...payload,
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + 30 * 24 * 3600 * 1000, // 30 days
+  };
+  return encryptJSON(sessionData);
+}
+
+/**
+ * Decrypt and verify session token validity.
+ */
+export function verifySessionToken(token: string): { id: string; email?: string | null; role: string; expiresAt: number } | null {
+  if (!token) return null;
+  const data = decryptJSON<{ id: string; email?: string | null; role: string; expiresAt: number }>(token);
+  if (!data || !data.id || !data.expiresAt) return null;
+  if (Date.now() > data.expiresAt) return null;
+  return data;
+}

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { ArrowUpRight, Check, Leaf, Plus, Settings2, ShieldCheck, Trash2, UserPlus } from "lucide-react"
+import { ArrowUpRight, Check, KeyRound, Leaf, Plus, Settings2, ShieldCheck, Trash2, UserPlus } from "lucide-react"
 import { api } from "@/lib/api"
 import {
   button,
@@ -459,8 +459,9 @@ function PolicyEditor({ close }: { close: () => void }) {
 
 export function SettingsSection() {
   const { club } = useApp()
-  const { audit } = useAdmin()
+  const { audit, me } = useAdmin()
   const [editing, setEditing] = useState<"identity" | "policy" | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
   return (
     <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
       <div className="space-y-5">
@@ -493,12 +494,27 @@ export function SettingsSection() {
         </Panel>
       </div>
       <div className="space-y-5">
+        <Panel title="Keamanan Akun & Kata Sandi">
+          <div className="p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">{me.name} <span className="text-2xs text-muted-foreground">({me.role === "owner" ? "Pemilik" : "Staf"})</span></p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{me.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setChangingPassword(true)}
+              className={`${outlineButton} !min-h-9 px-3 text-xs gap-1.5`}
+            >
+              <KeyRound size={13} /> Ganti kata sandi
+            </button>
+          </div>
+        </Panel>
         <TestingModeCard />
         <Panel>
           <div className="p-6">
             <ShieldCheck size={23} strokeWidth={1.3} aria-hidden="true" />
-            <h2 className="mt-4 font-display text-3xl">Siap disambungkan.</h2>
-            <p className="mt-4 text-xs leading-7 text-muted-foreground">Seluruh data saat ini tersimpan di perangkat ini melalui adapter lokal. Login staf, pembayaran, dan notifikasi akan berjalan sungguhan setelah backend terhubung.</p>
+            <h2 className="mt-4 font-display text-3xl">Autentikasi Cloud Aktif.</h2>
+            <p className="mt-4 text-xs leading-7 text-muted-foreground">Seluruh data pengguna, enkripsi PII, dan verifikasi sesi terhubung secara permanen ke database cloud.</p>
           </div>
         </Panel>
         <Panel title="Riwayat pengelolaan">
@@ -515,6 +531,7 @@ export function SettingsSection() {
       </div>
       {editing === "identity" && <IdentityEditor close={() => setEditing(null)} />}
       {editing === "policy" && <PolicyEditor close={() => setEditing(null)} />}
+      {changingPassword && <ChangeStaffPasswordDialog close={() => setChangingPassword(false)} />}
     </div>
   )
 }
@@ -556,6 +573,7 @@ export function TeamSection() {
   const { staff, me } = useAdmin()
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<string | null>(null)
+  const [changingPassword, setChangingPassword] = useState(false)
   const { busy, error, save } = useSave(() => setRemoving(null))
   return (
     <Panel title="Tim & akses" description="Pemilik mengelola semua hal. Staf menangani operasional harian tanpa akses transaksi dan pengaturan klub." action={<button type="button" className={button} onClick={() => setAdding(true)}><UserPlus size={16} /> Tambah anggota</button>}>
@@ -572,8 +590,16 @@ export function TeamSection() {
               </div>
               <div className="flex items-center gap-3">
                 <span className={`px-2.5 py-1 text-2xs ${member.role === "owner" ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{member.role === "owner" ? "Pemilik" : "Staf"}</span>
-                {member.id !== me.id &&
-                  (removing === member.id ? (
+                {member.id === me.id ? (
+                  <button
+                    type="button"
+                    onClick={() => setChangingPassword(true)}
+                    className={`${outlineButton} !min-h-9 px-3 text-xs gap-1.5`}
+                  >
+                    <KeyRound size={13} /> Ganti kata sandi
+                  </button>
+                ) : (
+                  removing === member.id ? (
                     <>
                       <button type="button" className={outlineButton} onClick={() => setRemoving(null)}>Batal</button>
                       <button type="button" disabled={busy} className={dangerButton} onClick={() => save(() => api.admin.removeStaff(member.id), `Akses ${member.name} dicabut.`)}>Cabut akses</button>
@@ -582,7 +608,8 @@ export function TeamSection() {
                     <button type="button" aria-label={`Cabut akses ${member.name}`} className="flex size-11 items-center justify-center text-muted-foreground hover:bg-secondary" onClick={() => setRemoving(member.id)}>
                       <Trash2 size={16} />
                     </button>
-                  ))}
+                  )
+                )}
               </div>
             </li>
           ))}
@@ -592,6 +619,87 @@ export function TeamSection() {
       )}
       {error && <p role="alert" className="px-5 pb-4 text-xs text-destructive">{error}</p>}
       {adding && <AddMember close={() => setAdding(false)} />}
+      {changingPassword && <ChangeStaffPasswordDialog close={() => setChangingPassword(false)} />}
     </Panel>
+  )
+}
+
+function ChangeStaffPasswordDialog({ close }: { close: () => void }) {
+  const { notify } = useAdmin()
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setError("Konfirmasi kata sandi tidak cocok.")
+      return
+    }
+    if (newPassword.length < 8) {
+      setError("Kata sandi baru minimal 8 karakter.")
+      return
+    }
+    setBusy(true)
+    setError("")
+    try {
+      await api.auth.changePassword({ currentPassword, newPassword })
+      notify("Kata sandi berhasil diperbarui.")
+      close()
+    } catch (err: any) {
+      setError(err?.message || "Gagal mengubah kata sandi.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <AdminDialog title="Ganti Kata Sandi Akun" close={close}>
+      <form onSubmit={submit} className="space-y-4">
+        <label className="block text-xs">
+          Kata Sandi Saat Ini
+          <input
+            required
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className={`${field} mt-1`}
+          />
+        </label>
+        <label className="block text-xs">
+          Kata Sandi Baru (Min. 8 karakter)
+          <input
+            required
+            type="password"
+            minLength={8}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className={`${field} mt-1`}
+          />
+        </label>
+        <label className="block text-xs">
+          Ulangi Kata Sandi Baru
+          <input
+            required
+            type="password"
+            minLength={8}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={`${field} mt-1`}
+          />
+        </label>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <button type="button" className={outlineButton} onClick={close}>
+            Batal
+          </button>
+          <button disabled={busy} className={button}>
+            {busy ? <Spinner className="text-white" /> : "Simpan Kata Sandi"}
+          </button>
+        </div>
+      </form>
+    </AdminDialog>
   )
 }

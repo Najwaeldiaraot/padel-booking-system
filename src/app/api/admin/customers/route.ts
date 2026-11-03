@@ -58,6 +58,7 @@ export async function GET(request: Request) {
 
     const decryptedCustomers = customers.map((customer) => ({
       ...customer,
+      name: safeDecrypt(customer.name) || customer.name,
       phone: safeDecrypt(customer.phone),
       email: safeDecrypt(customer.email),
     }));
@@ -88,6 +89,9 @@ export async function POST(request: Request) {
     const trimmedPhone = typeof phone === "string" ? phone.trim() : null;
     const trimmedEmail = typeof email === "string" ? email.trim() : null;
 
+    const encryptedName = encryptPII(trimmedName);
+    const nameBlindIndex = generateBlindIndex(trimmedName);
+
     const encryptedPhone = trimmedPhone ? encryptPII(trimmedPhone) : null;
     const phoneBlindIndex = trimmedPhone ? generateBlindIndex(trimmedPhone) : null;
 
@@ -97,8 +101,9 @@ export async function POST(request: Request) {
     // 1. Explicit ID update
     if (id) {
       const updateData: any = {
-        name: trimmedName,
-        ...(notes !== undefined && { notes }),
+        name: encryptedName,
+        nameBlindIndex,
+        ...(notes !== undefined && { notes: notes ? encryptPII(notes) : null }),
       };
 
       if (phone !== undefined) {
@@ -118,6 +123,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         ...updated,
+        name: safeDecrypt(updated.name) || updated.name,
         phone: safeDecrypt(updated.phone),
         email: safeDecrypt(updated.email),
       });
@@ -138,8 +144,9 @@ export async function POST(request: Request) {
 
     if (existingCustomer) {
       const updateData: any = {
-        name: trimmedName,
-        ...(notes !== undefined && { notes }),
+        name: encryptedName,
+        nameBlindIndex,
+        ...(notes !== undefined && { notes: notes ? encryptPII(notes) : null }),
       };
 
       if (encryptedPhone) {
@@ -159,6 +166,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         ...updated,
+        name: safeDecrypt(updated.name) || updated.name,
         phone: safeDecrypt(updated.phone),
         email: safeDecrypt(updated.email),
       });
@@ -167,18 +175,20 @@ export async function POST(request: Request) {
     // 3. Create new customer
     const created = await prisma.customer.create({
       data: {
-        name: trimmedName,
+        name: encryptedName,
+        nameBlindIndex,
         phone: encryptedPhone,
         email: encryptedEmail,
         phoneBlindIndex,
         emailBlindIndex,
-        notes: notes || null,
+        notes: notes ? encryptPII(notes) : null,
       },
     });
 
     return NextResponse.json(
       {
         ...created,
+        name: safeDecrypt(created.name) || created.name,
         phone: safeDecrypt(created.phone),
         email: safeDecrypt(created.email),
       },

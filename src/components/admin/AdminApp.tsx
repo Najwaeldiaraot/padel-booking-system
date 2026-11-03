@@ -9,10 +9,12 @@ import {
   CreditCard,
   ExternalLink,
   Grid2X2,
+  KeyRound,
   LayoutDashboard,
   Leaf,
   LockKeyhole,
   LogOut,
+  MailCheck,
   Menu,
   MessageSquare,
   Plus,
@@ -63,19 +65,39 @@ function AdminLogin({ onLogin }: { onLogin: (user: User) => void }) {
   const [password, setPassword] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  usePageTitle("Masuk staf", club.name)
+  const [mode, setMode] = useState<"login" | "forgot" | "reset_otp">("login")
+  const [challenge, setChallenge] = useState<any>(null)
+  const [otpCode, setOtpCode] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+
+  usePageTitle(mode === "login" ? "Masuk staf" : "Reset sandi staf", club.name)
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setError("")
     try {
-      onLogin(await api.auth.login({ identifier: email, password, scope: "staff" }))
-    } catch (problem) {
-      setError(errorMessage(problem, id))
+      if (mode === "login") {
+        onLogin(await api.auth.login({ identifier: email, password, scope: "staff" }))
+      } else if (mode === "forgot") {
+        const res = await api.auth.forgotPassword({ identifier: email })
+        setChallenge(res)
+        setMode("reset_otp")
+      } else if (mode === "reset_otp") {
+        const user = await api.auth.resetPassword({
+          challengeId: challenge.challengeId,
+          code: otpCode,
+          newPassword,
+        })
+        onLogin(user)
+      }
+    } catch (problem: any) {
+      setError(errorMessage(problem, id) || problem?.message || "Terjadi kendala.")
     } finally {
       setBusy(false)
     }
   }
+
   return (
     <div className="grid min-h-dvh bg-surface lg:grid-cols-2">
       <div className="relative hidden overflow-hidden bg-primary lg:block">
@@ -89,26 +111,133 @@ function AdminLogin({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
       </div>
       <div className="flex items-center justify-center px-6 py-16">
-        <form onSubmit={submit} className="w-full max-w-sm space-y-4">
-          <p className={`${eyebrow} text-sage`}>{club.name}</p>
-          <h1 className="font-display text-5xl">Masuk staf.</h1>
-          <p className="text-sm leading-7 text-muted-foreground">Khusus pemilik dan staf klub. Lima kali gagal mengunci akses selama 15 menit.</p>
-          <label className="block text-sm">Email<input required type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className={`${field} mt-2`} /></label>
-          <label className="block text-sm">Kata sandi<input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className={`${field} mt-2`} /></label>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <button disabled={busy} className={`${button} w-full`}>{busy ? <Spinner className="text-primary-foreground" /> : <>Masuk <ArrowRight size={16} /></>}</button>
-          <div className="border-t border-border pt-4">
-            <p className="text-xs text-muted-foreground">Akun pratinjau</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {previewAccounts.filter((item) => item.role !== "player").map((account) => (
-                <button key={account.email} type="button" className={`${outlineButton} text-xs`} onClick={() => { setEmail(account.email); setPassword(account.password) }}>
-                  {account.label}
-                </button>
-              ))}
+        {mode === "forgot" ? (
+          <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+            <p className={`${eyebrow} text-sage`}>{club.name}</p>
+            <h1 className="font-display text-5xl">Reset sandi.</h1>
+            <p className="text-sm leading-7 text-muted-foreground">
+              Masukkan email akun staf atau pemilik. Kami akan mengirimkan kode verifikasi.
+            </p>
+            <label className="block text-sm">
+              Email
+              <input
+                required
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`${field} mt-2`}
+              />
+            </label>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <button disabled={busy} className={`${button} w-full`}>
+              {busy ? <Spinner className="text-primary-foreground" /> : <>Kirim Kode Pemulihan <ArrowRight size={16} /></>}
+            </button>
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                className={`${textLink} text-xs`}
+                onClick={() => {
+                  setError("")
+                  setMode("login")
+                }}
+              >
+                Kembali ke Halaman Masuk
+              </button>
             </div>
-          </div>
-          <Link to="/" className={`${textLink} text-muted-foreground`}>Kembali ke website <ExternalLink size={13} /></Link>
-        </form>
+          </form>
+        ) : mode === "reset_otp" ? (
+          <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+            <p className={`${eyebrow} text-sage`}>{club.name}</p>
+            <h1 className="font-display text-5xl">Sandi baru.</h1>
+            <p className="text-sm leading-7 text-muted-foreground">
+              Masukkan 6 digit kode yang dikirim ke <strong className="text-foreground">{challenge?.destination}</strong>.
+            </p>
+            <div className="flex items-start gap-3 border border-border bg-secondary/60 p-4 text-xs leading-6">
+              <MailCheck size={16} className="mt-1 shrink-0" aria-hidden="true" />
+              <p>
+                Kode pemulihan: <strong className="font-mono text-sm tracking-widest">{challenge?.preview}</strong>
+              </p>
+            </div>
+            <label className="block text-sm">
+              Kode OTP (6 digit)
+              <input
+                required
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className={`${field} mt-2 text-center font-mono text-xl tracking-[0.5em]`}
+              />
+            </label>
+            <label className="block text-sm">
+              Kata Sandi Baru (Min. 8 karakter)
+              <input
+                required
+                type="password"
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className={`${field} mt-2`}
+              />
+            </label>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <button disabled={busy || otpCode.length !== 6 || newPassword.length < 8} className={`${button} w-full`}>
+              {busy ? <Spinner className="text-primary-foreground" /> : <>Simpan Kata Sandi & Masuk <ArrowRight size={16} /></>}
+            </button>
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                className={`${textLink} text-xs`}
+                onClick={() => {
+                  setError("")
+                  setMode("forgot")
+                }}
+              >
+                Kirim Ulang Kode
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={submit} className="w-full max-w-sm space-y-4">
+            <p className={`${eyebrow} text-sage`}>{club.name}</p>
+            <h1 className="font-display text-5xl">Masuk staf.</h1>
+            <p className="text-sm leading-7 text-muted-foreground">Khusus pemilik dan staf klub. Lima kali gagal mengunci akses selama 15 menit.</p>
+            <label className="block text-sm">
+              Email
+              <input required type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className={`${field} mt-2`} />
+            </label>
+            <div className="block text-sm">
+              <div className="flex items-center justify-between">
+                <span>Kata sandi</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("")
+                    setMode("forgot")
+                  }}
+                  className="text-2xs text-muted-foreground hover:text-foreground underline"
+                >
+                  Lupa kata sandi?
+                </button>
+              </div>
+              <input required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className={`${field} mt-2`} />
+            </div>
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <button disabled={busy} className={`${button} w-full`}>{busy ? <Spinner className="text-primary-foreground" /> : <>Masuk <ArrowRight size={16} /></>}</button>
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground">Akun pratinjau</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {previewAccounts.filter((item) => item.role !== "player").map((account) => (
+                  <button key={account.email} type="button" className={`${outlineButton} text-xs`} onClick={() => { setEmail(account.email); setPassword(account.password) }}>
+                    {account.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Link to="/" className={`${textLink} text-muted-foreground`}>Kembali ke website <ExternalLink size={13} /></Link>
+          </form>
+        )}
       </div>
     </div>
   )

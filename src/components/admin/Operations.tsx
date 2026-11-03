@@ -962,12 +962,22 @@ export function CustomersSection() {
   const players = [...new Set(bookings.map(customerName))]
     .map((name) => {
       const history = bookings.filter((item) => customerName(item) === name)
+      const lastDateStr = history.map((item) => item.date).sort().at(-1)
+      let daysSinceLastVisit: number | null = null
+      if (lastDateStr) {
+        const [y, m, d] = lastDateStr.split("-").map(Number)
+        const lastDate = new Date(y, m - 1, d)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        daysSinceLastVisit = Math.max(0, Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 3600 * 24)))
+      }
       return {
         name,
         history,
         contact: history.find((item) => item.customerContact)?.customerContact,
         spent: history.filter((item) => item.status === "confirmed" || item.status === "completed").reduce((sum, item) => sum + item.total, 0),
-        last: history.map((item) => item.date).sort().at(-1),
+        last: lastDateStr,
+        daysSinceLastVisit,
       }
     })
     .filter((player) => `${player.name} ${player.contact || ""}`.toLowerCase().includes(debouncedQuery.toLowerCase()))
@@ -987,7 +997,31 @@ export function CustomersSection() {
           {players.map((player) => (
             <div key={player.name} className="flex flex-col justify-between border border-border p-5">
               <div>
-                <span className="flex size-11 items-center justify-center bg-secondary font-display text-2xl" aria-hidden="true">{player.name[0]}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex size-11 items-center justify-center bg-secondary font-display text-2xl" aria-hidden="true">{player.name[0]}</span>
+                  {player.daysSinceLastVisit !== null ? (
+                    player.daysSinceLastVisit <= 7 ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-2xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Aktif ({player.daysSinceLastVisit === 0 ? "hari ini" : `${player.daysSinceLastVisit}h lalu`})
+                      </span>
+                    ) : player.daysSinceLastVisit <= 14 ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-2xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
+                        <span className="size-1.5 rounded-full bg-amber-500" />
+                        Mulai Jarang ({player.daysSinceLastVisit}h lalu)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-2xs font-medium bg-rose-50 text-rose-700 border border-rose-200 rounded-full">
+                        <span className="size-1.5 rounded-full bg-rose-500" />
+                        Perlu Disapa ({player.daysSinceLastVisit}h lalu)
+                      </span>
+                    )
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-2xs font-medium bg-secondary text-muted-foreground border border-border rounded-full">
+                      Belum Main
+                    </span>
+                  )}
+                </div>
                 <h2 className="mt-4 text-sm font-medium">{player.name}</h2>
                 <p className="mt-2 text-xs text-muted-foreground">{player.history.length} booking · {money(player.spent)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{player.contact || "Kontak tidak dicatat"}</p>

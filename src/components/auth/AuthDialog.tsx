@@ -1,12 +1,24 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { Link } from "react-router"
-import { ArrowRight, Eye, EyeOff, LogOut, MailCheck } from "lucide-react"
+import {
+  ArrowRight,
+  Award,
+  CalendarCheck,
+  Clock,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  LogOut,
+  MailCheck,
+  ShieldCheck,
+} from "lucide-react"
 import { api, previewAccounts, type OtpChallenge } from "@/lib/api"
 import { button, field, outlineButton, textLink, type User } from "@/lib/club"
 import { errorMessage, useLocale } from "@/lib/i18n"
 import { Modal, Spinner, formatCountdown, useCountdown } from "@/components/ui"
 
-type Mode = "login" | "register" | "otp"
+type Mode = "login" | "register" | "otp" | "forgot" | "reset_otp"
 
 export default function AuthDialog({
   open,
@@ -23,16 +35,23 @@ export default function AuthDialog({
 }) {
   const { t } = useLocale()
   const [mode, setMode] = useState<Mode>("login")
+
   useEffect(() => {
     if (open) setMode("login")
   }, [open])
+
   const title = user
     ? t("Akun kamu", "Your account")
     : mode === "register"
       ? t("Buat akun pemain", "Create a player account")
       : mode === "otp"
         ? t("Cek kode verifikasi", "Check your code")
-        : t("Masuk untuk booking", "Sign in to book")
+        : mode === "forgot"
+          ? t("Reset kata sandi", "Reset password")
+          : mode === "reset_otp"
+            ? t("Buat kata sandi baru", "Create new password")
+            : t("Masuk untuk booking", "Sign in to book")
+
   return (
     <Modal open={open} close={close} title={title} closeLabel={t("Tutup", "Close")}>
       {user ? (
@@ -47,19 +66,142 @@ export default function AuthDialog({
 function Account({ user, close, onSignedOut }: { user: User; close: () => void; onSignedOut: () => void }) {
   const { t } = useLocale()
   const [busy, setBusy] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [passwordMsg, setPasswordMsg] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+
+  const handleChangePassword = async (e: FormEvent) => {
+    e.preventDefault()
+    setPasswordMsg("")
+    setPasswordError("")
+    setBusy(true)
+    try {
+      await api.auth.changePassword({ currentPassword, newPassword })
+      setPasswordMsg("Kata sandi berhasil diperbarui.")
+      setCurrentPassword("")
+      setNewPassword("")
+      setChangingPassword(false)
+    } catch (err: any) {
+      setPasswordError(err?.message || "Gagal mengubah kata sandi.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const visitText =
+    user.daysSinceLastVisit !== null && user.daysSinceLastVisit !== undefined
+      ? user.daysSinceLastVisit === 0
+        ? "Bermain hari ini"
+        : user.daysSinceLastVisit === 1
+          ? "Bermain kemarin"
+          : `Terakhir main ${user.daysSinceLastVisit} hari lalu`
+      : "Belum ada riwayat main"
+
   return (
     <div className="space-y-5">
+      {/* Kartu Profil & Tingkat Keanggotaan */}
       <div className="border border-border bg-card p-5">
-        <p className="font-display text-3xl">{user.name}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{user.email || `+${user.phone}`}</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-display text-3xl">{user.name}</p>
+          <span className="inline-flex items-center gap-1 bg-forest-deep px-3 py-1 text-2xs font-semibold text-white rounded-full">
+            <Award size={13} className="text-white" />
+            {user.loyaltyTier || "Club Member"}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{user.email || `+${user.phone}`}</p>
+
+        {/* Counter Booking & Lama Tidak Kembali */}
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/70 pt-4 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center bg-secondary text-primary rounded-full">
+              <CalendarCheck size={14} />
+            </span>
+            <div>
+              <p className="text-2xs text-muted-foreground">Total Booking</p>
+              <p className="font-semibold text-foreground">{user.totalBookings ?? 0} kali</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center bg-secondary text-primary rounded-full">
+              <Clock size={14} />
+            </span>
+            <div>
+              <p className="text-2xs text-muted-foreground">Kunjungan</p>
+              <p className="font-semibold text-foreground">{visitText}</p>
+            </div>
+          </div>
+        </div>
+
+        {user.favoriteCourt && (
+          <p className="mt-3 text-2xs text-muted-foreground">
+            Lapangan favorit: <strong className="text-foreground">{user.favoriteCourt}</strong>
+          </p>
+        )}
       </div>
+
+      {/* Form Ubah Kata Sandi (Collapsible) */}
+      {changingPassword ? (
+        <form onSubmit={handleChangePassword} className="space-y-3 border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <h4 className="flex items-center gap-1.5 text-xs font-semibold">
+              <KeyRound size={14} /> Ubah Kata Sandi
+            </h4>
+            <button
+              type="button"
+              onClick={() => setChangingPassword(false)}
+              className="text-2xs text-muted-foreground hover:text-foreground underline"
+            >
+              Batal
+            </button>
+          </div>
+          <label className="block text-2xs">
+            Kata Sandi Saat Ini
+            <input
+              required
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className={`${field} mt-1`}
+            />
+          </label>
+          <label className="block text-2xs">
+            Kata Sandi Baru (Min. 8 karakter)
+            <input
+              required
+              type="password"
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className={`${field} mt-1`}
+            />
+          </label>
+          {passwordError && <p className="text-2xs text-destructive">{passwordError}</p>}
+          <button disabled={busy} className={`${button} w-full !min-h-9 text-xs`}>
+            {busy ? <Spinner /> : "Simpan Kata Sandi"}
+          </button>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setChangingPassword(true)}
+          className={`${outlineButton} w-full text-xs gap-1.5`}
+        >
+          <KeyRound size={14} /> Ganti Kata Sandi
+        </button>
+      )}
+
+      {passwordMsg && <p className="text-xs text-primary font-medium text-center">{passwordMsg}</p>}
+
       <Link to="/bookings" onClick={close} className={`${button} w-full`}>
         {t("Lihat booking saya", "View my bookings")} <ArrowRight size={16} />
       </Link>
+
       <button
         type="button"
         disabled={busy}
-        className={`${outlineButton} w-full`}
+        className={`${outlineButton} w-full text-muted-foreground hover:text-foreground`}
         onClick={async () => {
           setBusy(true)
           await api.auth.logout("player")
@@ -125,33 +267,57 @@ function AuthFlow({
   const [challenge, setChallenge] = useState<OtpChallenge | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
   const expiresIn = useCountdown(challenge?.expiresAt)
   const resendIn = useCountdown(challenge?.resendAt)
+
   const run = async (task: () => Promise<void>) => {
     setLoading(true)
     setError("")
     try {
       await task()
-    } catch (problem) {
-      setError(errorMessage(problem, t))
+    } catch (problem: any) {
+      setError(errorMessage(problem, t) || problem?.message || "Terjadi kendala.")
     } finally {
       setLoading(false)
     }
   }
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (mode === "login")
+    if (mode === "login") {
       run(async () => onAuthenticated(await api.auth.login({ identifier, password, scope: "player" })))
-    else if (mode === "register")
+    } else if (mode === "register") {
       run(async () => {
         setChallenge(await api.auth.register({ name, identifier, password }))
         setCode("")
         setMode("otp")
       })
-    else run(async () => onAuthenticated(await api.auth.verifyOtp({ challengeId: challenge!.challengeId, code })))
+    } else if (mode === "otp") {
+      run(async () => onAuthenticated(await api.auth.verifyOtp({ challengeId: challenge!.challengeId, code })))
+    } else if (mode === "forgot") {
+      run(async () => {
+        setChallenge(await api.auth.forgotPassword({ identifier }))
+        setCode("")
+        setPassword("")
+        setMode("reset_otp")
+      })
+    } else if (mode === "reset_otp") {
+      run(async () => {
+        const user = await api.auth.resetPassword({
+          challengeId: challenge!.challengeId,
+          code,
+          newPassword: password,
+        })
+        onAuthenticated(user)
+      })
+    }
   }
+
   const strength = [password.length >= 8, /\d/.test(password), /[A-Za-z]/.test(password)].filter(Boolean).length
-  if (mode === "otp" && challenge)
+
+  // ================= TAMPILAN OTP REGISTRASI =================
+  if (mode === "otp" && challenge) {
     return (
       <form onSubmit={submit} className="space-y-5">
         <p className="text-sm leading-7 text-muted-foreground">
@@ -199,6 +365,105 @@ function AuthFlow({
         </div>
       </form>
     )
+  }
+
+  // ================= TAMPILAN LUPA KATA SANDI (FORGOT) =================
+  if (mode === "forgot") {
+    return (
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm leading-7 text-muted-foreground">
+          Masukkan email atau nomor HP yang terdaftar. Kami akan mengirimkan kode verifikasi untuk mereset kata sandi kamu.
+        </p>
+        <label className="block text-sm">
+          Email atau nomor HP
+          <input
+            required
+            autoComplete="username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="kamu@email.com atau 0812…"
+            className={`${field} mt-2`}
+          />
+        </label>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <button disabled={loading} className={`${button} w-full`}>
+          {loading ? <Spinner /> : <>Kirim Kode Pemulihan <ArrowRight size={16} /></>}
+        </button>
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            className={`${textLink} text-xs`}
+            onClick={() => {
+              setError("")
+              setMode("login")
+            }}
+          >
+            Kembali ke Halaman Masuk
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  // ================= TAMPILAN RESET KATA SANDI + OTP =================
+  if (mode === "reset_otp" && challenge) {
+    return (
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm leading-7 text-muted-foreground">
+          Masukkan 6 digit kode yang dikirim ke <strong className="text-foreground">{challenge.destination}</strong> dan buat kata sandi baru.
+        </p>
+        <div className="flex items-start gap-3 border border-border bg-secondary/60 p-4 text-xs leading-6">
+          <MailCheck size={16} className="mt-1 shrink-0" aria-hidden="true" />
+          <p>
+            Pratinjau kode pemulihan: <strong className="font-mono text-sm tracking-widest">{challenge.preview}</strong>
+          </p>
+        </div>
+        <label className="block text-sm">
+          Kode Verifikasi (6 digit)
+          <input
+            className={`${field} mt-2 text-center font-mono text-xl tracking-[0.5em]`}
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            required
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="000000"
+          />
+        </label>
+        <label className="block text-sm">
+          Kata Sandi Baru
+          <PasswordInput value={password} onChange={setPassword} autoComplete="new-password" />
+        </label>
+        <div aria-live="polite" className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="flex gap-1" aria-hidden="true">
+            {[0, 1, 2].map((index) => (
+              <span key={index} className={`h-1 w-8 ${index < strength ? "bg-primary" : "bg-border"}`} />
+            ))}
+          </span>
+          Minimal 8 karakter, gabungkan huruf & angka.
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <button disabled={loading || code.length !== 6 || password.length < 8} className={`${button} w-full`}>
+          {loading ? <Spinner /> : <>Simpan Kata Sandi & Masuk <ArrowRight size={16} /></>}
+        </button>
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            className={`${textLink} text-xs`}
+            onClick={() => {
+              setError("")
+              setMode("forgot")
+            }}
+          >
+            Kirim Ulang Kode Pemulihan
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  // ================= TAMPILAN LOGIN / REGISTER =================
   return (
     <form onSubmit={submit} className="space-y-4">
       <p className="text-sm leading-7 text-muted-foreground">
@@ -223,10 +488,24 @@ function AuthFlow({
           className={`${field} mt-2`}
         />
       </label>
-      <label className="block text-sm">
-        {t("Kata sandi", "Password")}
+      <div className="block text-sm">
+        <div className="flex items-center justify-between">
+          <span>{t("Kata sandi", "Password")}</span>
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={() => {
+                setError("")
+                setMode("forgot")
+              }}
+              className="text-2xs text-muted-foreground hover:text-foreground underline"
+            >
+              Lupa kata sandi?
+            </button>
+          )}
+        </div>
         <PasswordInput value={password} onChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} />
-      </label>
+      </div>
       {mode === "register" && (
         <>
           <div aria-live="polite" className="flex items-center gap-3 text-xs text-muted-foreground">

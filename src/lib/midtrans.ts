@@ -115,23 +115,30 @@ export function generateFallbackQrisString(orderId: string, grossAmount: number)
 
   const tag26 = tlv(
     "26",
-    tlv("00", "ID.CO.QRIS.WWW") +
-      tlv("01", "ID1020021000002") +
-      tlv("02", "0000000000000000303UMI")
+    tlv("00", "COM.GO-JEK.WWW") +
+      tlv("01", "9360091437354486832") +
+      tlv("02", "M735448683") +
+      tlv("03", "UKE")
   );
-  const tag62 = tlv("62", tlv("01", orderId.slice(0, 25)));
+  const tag51 = tlv(
+    "51",
+    tlv("00", "ID.CO.QRIS.WWW") +
+      tlv("02", "AID315540455283") +
+      tlv("03", "UKE")
+  );
+  const tag62 = tlv("62", tlv("01", orderId.slice(0, 25)) + tlv("07", "A01"));
 
   const base =
     tlv("00", "01") +
     tlv("01", "12") +
     tag26 +
-    tlv("51", tlv("00", "ID.LINKAJA.WWW") + tlv("02", "0000000000000000303UMI")) +
-    tlv("52", "5812") +
+    tag51 +
+    tlv("52", "3013") +
     tlv("53", "360") +
     tlv("54", amtStr) +
     tlv("58", "ID") +
-    tlv("59", "RALLY PADEL CLUB") +
-    tlv("60", "JAKARTA SELATAN") +
+    tlv("59", "Rally Padel Club") +
+    tlv("60", "Jakarta Selatan") +
     tlv("61", "12730") +
     tag62 +
     "6304";

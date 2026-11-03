@@ -479,6 +479,23 @@ export const api = {
   auth: {
     /** POST /auth/register → sends OTP */
     async register(input: { name: string; identifier: string; password: string }): Promise<OtpChallenge> {
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            throw new ApiError(data.error?.includes("terdaftar") ? "duplicate" : "invalid_input", data.error || "Gagal mendaftar.")
+          }
+          return data
+        }
+      } catch (err: any) {
+        if (err instanceof ApiError) throw err
+        console.warn("fetch /api/auth/register fallback", err)
+      }
       await wait()
       const d = await db()
       const name = input.name.trim()
@@ -506,6 +523,28 @@ export const api = {
     },
     /** POST /auth/verify-otp */
     async verifyOtp(input: { challengeId: string; code: string }): Promise<User> {
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch("/api/auth/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            throw new ApiError(data.error?.includes("kedaluwarsa") ? "otp_expired" : "otp_invalid", data.error || "Kode salah.", { remaining: data.remaining })
+          }
+          const d = await db()
+          d.users = d.users.filter((u) => u.id !== data.user.id)
+          d.users.push(data.user)
+          localStorage.setItem(SESSION_KEYS.player, JSON.stringify(data.user.id))
+          commit()
+          return data.user
+        }
+      } catch (err: any) {
+        if (err instanceof ApiError) throw err
+        console.warn("fetch /api/auth/verify-otp fallback", err)
+      }
       await wait()
       const d = await db()
       const pending = d.pending.find((item) => item.id === input.challengeId)
@@ -542,6 +581,34 @@ export const api = {
     },
     /** POST /auth/login (scope "staff" only admits owner/staff roles) */
     async login(input: { identifier: string; password: string; scope: SessionScope }): Promise<User> {
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+          })
+          const data = await res.json()
+          if (!res.ok) {
+            if (res.status === 429) {
+              throw new ApiError("locked", data.error || "Akun dikunci sementara.")
+            }
+            if (res.status === 403) {
+              throw new ApiError("forbidden", data.error || "Akses ini khusus staf atau pemilik klub.")
+            }
+            throw new ApiError("invalid_credentials", data.error || "Email/nomor atau kata sandi belum tepat.", { remaining: data.remaining })
+          }
+          const d = await db()
+          d.users = d.users.filter((u) => u.id !== data.user.id)
+          d.users.push(data.user)
+          localStorage.setItem(SESSION_KEYS[input.scope], JSON.stringify(data.user.id))
+          commit()
+          return data.user
+        }
+      } catch (err: any) {
+        if (err instanceof ApiError) throw err
+        console.warn("fetch /api/auth/login fallback", err)
+      }
       await wait(260)
       const d = await db()
       const identity = parseIdentifier(input.identifier)
@@ -572,14 +639,91 @@ export const api = {
       commit()
       return user!
     },
+    /** POST /auth/forgot-password */
+    async forgotPassword(input: { identifier: string }): Promise<OtpChallenge> {
+      if (typeof window !== "undefined") {
+        const res = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new ApiError(res.status === 404 ? "not_found" : "invalid_input", data.error || "Gagal memproses reset kata sandi.")
+        }
+        return data
+      }
+      throw new ApiError("invalid_input", "Fitur reset kata sandi membutuhkan koneksi.")
+    },
+    /** POST /auth/reset-password */
+    async resetPassword(input: { challengeId: string; code: string; newPassword: string }): Promise<User> {
+      if (typeof window !== "undefined") {
+        const res = await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new ApiError(data.error?.includes("kedaluwarsa") ? "otp_expired" : "otp_invalid", data.error || "Kode salah.", { remaining: data.remaining })
+        }
+        if (data.user) {
+          const d = await db()
+          d.users = d.users.filter((u) => u.id !== data.user.id)
+          d.users.push(data.user)
+          localStorage.setItem(SESSION_KEYS.player, JSON.stringify(data.user.id))
+          commit()
+          return data.user
+        }
+      }
+      throw new ApiError("invalid_input", "Gagal mereset kata sandi.")
+    },
+    /** POST /auth/change-password */
+    async changePassword(input: { currentPassword: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+      if (typeof window !== "undefined") {
+        const res = await fetch("/api/auth/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          throw new ApiError("invalid_input", data.error || "Gagal mengubah kata sandi.")
+        }
+        return data
+      }
+      return { success: true, message: "Kata sandi berhasil diperbarui." }
+    },
     /** POST /auth/logout */
     async logout(scope: SessionScope) {
+      try {
+        if (typeof window !== "undefined") {
+          await fetch("/api/auth/logout", { method: "POST" })
+        }
+      } catch {}
       await wait(80)
       localStorage.removeItem(SESSION_KEYS[scope])
       commit()
     },
     /** GET /auth/me */
     async me(scope: SessionScope): Promise<User | null> {
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch("/api/auth/me")
+          if (res.ok) {
+            const data = await res.json()
+            if (data.user) {
+              const d = await db()
+              d.users = d.users.filter((u) => u.id !== data.user.id)
+              d.users.push(data.user)
+              localStorage.setItem(SESSION_KEYS[scope], JSON.stringify(data.user.id))
+              return data.user
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("fetch /api/auth/me fallback", e)
+      }
       const d = await db()
       return sessionUser(d, scope)
     },

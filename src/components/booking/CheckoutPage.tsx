@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, QrCode, ShieldCheck, Sparkles } from "lucide-react"
 import { api } from "@/lib/api"
+import { generateFallbackQrisString } from "@/lib/midtrans"
 import {
   button,
   eyebrow,
@@ -33,6 +34,8 @@ export default function CheckoutPage() {
   const [error, setError] = useState("")
   const [failed, setFailed] = useState(false)
   const [copiedQr, setCopiedQr] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(false)
   usePageTitle(t("Checkout", "Checkout"), club.name)
   const load = useCallback(async () => {
     if (!user) return
@@ -56,6 +59,52 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (booking?.status === "confirmed") navigate(`/confirmation/${booking.id}`, { replace: true })
   }, [booking, navigate])
+
+  // Polling payment status automatically for real-time Midtrans Sandbox confirmation
+  useEffect(() => {
+    if (!booking || booking.status !== "pending_payment" || !payment) return
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payment/status?orderId=${booking.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.status === "confirmed") {
+            clearInterval(interval)
+            await refresh()
+            navigate(`/confirmation/${booking.id}`, { replace: true })
+          }
+        }
+      } catch {
+        // non-blocking polling
+      }
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [booking, payment, refresh, navigate])
+
+  const checkPaymentStatus = async () => {
+    if (!booking) return
+    setCheckingStatus(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/payment/status?orderId=${booking.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.status === "confirmed") {
+          await refresh()
+          navigate(`/confirmation/${booking.id}`, { replace: true })
+          return
+        } else if (data.status === "expired") {
+          setError("Transaksi di Midtrans telah kedaluwarsa (melebihi 15 menit). Silakan ulangi booking atau gunakan tombol simulasi instan di bawah.")
+        } else {
+          setError("Pembayaran belum terdeteksi settlement di Midtrans. Jika sudah klik 'Pay' di simulator, tunggu beberapa saat atau gunakan tombol 'Bayar QRIS Instan'.")
+        }
+      }
+    } catch {
+      setError("Gagal memeriksa status ke Midtrans.")
+    } finally {
+      setCheckingStatus(false)
+    }
+  }
   if (!user)
     return (
       <ErrorState
@@ -139,15 +188,14 @@ export default function CheckoutPage() {
                 <p className="text-sm font-medium">{paymentMethods.find((item) => item.id === payment.method)?.label}</p>
                 {payment.method === "qris" ? (
                   (() => {
-                    const fallbackEmvco = `00020101021226590014ID.LINKAJA.WWW011893600911002209355702150000000000000000303UMI51440014ID.CO.QRIS.WWW0215ID10200210000020303UMI520458125303360540${String(payment.amount).length}${payment.amount}5802ID5916Rally Padel Club6015Jakarta Selatan61051273062200116${payment.bookingId.slice(0, 16)}6304ABCD`
-                    const effectiveQr = payment.qrString || fallbackEmvco
+                    const effectiveQr = payment.qrString || generateFallbackQrisString(payment.bookingId, payment.amount)
                     const qrImgSrc = payment.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(effectiveQr)}`
 
                     return (
                       <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-border bg-muted/20 p-5 text-center">
-                        <div className="mb-2 flex items-center gap-1.5 rounded bg-clay/10 px-2.5 py-1 text-2xs font-semibold uppercase text-clay">
+                        <div className="mb-2 flex items-center gap-1.5 rounded bg-emerald-700/10 px-2.5 py-1 text-2xs font-semibold uppercase text-emerald-800">
                           <QrCode size={13} />
-                          QRIS Standar Nasional (Sandbox)
+                          QRIS Standar Nasional (Midtrans Sandbox)
                         </div>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -157,7 +205,7 @@ export default function CheckoutPage() {
                           height={180}
                           className="my-3 rounded-lg border border-border bg-white p-2 shadow-sm"
                         />
-                        <div className="mt-1 flex flex-col items-center gap-2">
+                        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -167,14 +215,40 @@ export default function CheckoutPage() {
                             }}
                             className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-3 py-1.5 text-2xs font-medium text-foreground transition hover:bg-secondary"
                           >
-                            {copiedQr ? <><Check size={12} className="text-emerald-600" /> Berhasil Disalin</> : <><Copy size={12} /> Salin QR String (EMVCo)</>}
+                            {copiedQr ? <><Check size={12} className="text-emerald-600" /> String QR Disalin</> : <><Copy size={12} /> Salin QR String (EMVCo)</>}
                           </button>
-                          <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                            Buka <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Midtrans Simulator QRIS ↗</a> lalu scan QR di atas atau paste string QRIS.
-                          </p>
+
+                          {payment.qrImageUrl && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(payment.qrImageUrl!)
+                                setCopiedUrl(true)
+                                setTimeout(() => setCopiedUrl(false), 2000)
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-3 py-1.5 text-2xs font-medium text-foreground transition hover:bg-secondary"
+                            >
+                              {copiedUrl ? <><Check size={12} className="text-emerald-600" /> URL Disalin</> : <><ExternalLink size={12} /> Salin URL Gambar QR</>}
+                            </button>
+                          )}
                         </div>
-                        <p className="mt-2 text-2xs text-muted-foreground/80">
-                          (Mode Sandbox: Saldo BCA/e-wallet Anda tidak akan terpotong)
+
+                        <div className="mt-3 flex flex-col items-center gap-2">
+                          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                            Buka <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Midtrans Simulator QRIS ↗</a> lalu scan QR atau paste URL / string QRIS di atas.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={checkingStatus}
+                            onClick={checkPaymentStatus}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition cursor-pointer"
+                          >
+                            {checkingStatus ? <Spinner label="Memeriksa status…" className="text-primary" /> : <>🔄 Cek Status Pembayaran (Midtrans)</>}
+                          </button>
+                        </div>
+
+                        <p className="mt-3 text-2xs text-amber-800 bg-amber-500/10 border border-amber-500/20 rounded p-2 max-w-sm text-left leading-relaxed">
+                          💡 <strong>Catatan Sandbox:</strong> QRIS Midtrans berlaku 15 menit. Jika muncul &quot;Transaction is unsuccessful&quot; di simulator, berarti transaksi tersebut sudah kedaluwarsa. Anda dapat klik tombol &quot;⚡ Bayar QRIS Instan&quot; di bawah untuk simulasi langsung.
                         </p>
                       </div>
                     )
