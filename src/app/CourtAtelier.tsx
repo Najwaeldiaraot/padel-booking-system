@@ -15,6 +15,8 @@ import {
 } from "./club"
 import { CinematicReveal } from "./CinematicMotion"
 import { useContent, useLocale } from "./i18n"
+import { CustomSelect } from "../components/ui/CustomSelect"
+import { CustomDatePicker } from "../components/ui/CustomDatePicker"
 
 export function BookingDock() {
   const { club, date, setDate, busy } = useApp()
@@ -38,32 +40,28 @@ export function BookingDock() {
           <p className={`${eyebrow} text-clay`}>Make time for play</p>
           <p className="mt-2 font-display text-2xl">{t("Rally berikutnya?", "Next rally?")}</p>
         </div>
-        <label className={labelClass}>
-          {t("Lapangan", "Court")}
-          <select
+        <div className={labelClass}>
+          <span className="block mb-1">{t("Lapangan", "Court")}</span>
+          <CustomSelect
             value={selected?.id || 0}
-            onChange={(event) => setChoice(Number(event.target.value))}
-            className="mt-2 block min-h-11 w-full border-b border-border bg-transparent text-sm tracking-normal text-primary normal-case outline-none focus-visible:border-primary"
-          >
-            {courts.length ? (
-              courts.map((court) => (
-                <option key={court.id} value={court.id}>{content.court(court, "name")}</option>
-              ))
-            ) : (
-              <option value="0">{t("Belum ada lapangan aktif", "No courts open yet")}</option>
-            )}
-          </select>
-        </label>
-        <label className={labelClass}>
-          {t("Tanggal main · WIB", "Date · WIB")}
-          <input
-            type="date"
-            min={today()}
-            value={date}
-            onChange={(event) => event.target.value >= today() && setDate(event.target.value)}
-            className="mt-2 block min-h-11 w-full border-b border-border bg-transparent text-sm tracking-normal text-primary outline-none focus-visible:border-primary"
+            onChange={(val) => setChoice(Number(val))}
+            options={
+              courts.length
+                ? courts.map((court) => ({ value: court.id, label: content.court(court, "name") }))
+                : [{ value: 0, label: t("Belum ada lapangan aktif", "No courts open yet") }]
+            }
+            triggerClassName="!min-h-11 !border-b !border-x-0 !border-t-0 !bg-transparent !px-0 !text-sm !font-normal"
           />
-        </label>
+        </div>
+        <div className={labelClass}>
+          <span className="block mb-1">{t("Tanggal main · WIB", "Date · WIB")}</span>
+          <CustomDatePicker
+            value={date}
+            minDate={today()}
+            onChange={(newDate) => newDate >= today() && setDate(newDate)}
+            triggerClassName="!min-h-11 !border-b !border-x-0 !border-t-0 !bg-transparent !px-0 !text-sm !font-normal"
+          />
+        </div>
         {selected ? (
           <Link to={`/book?court=${selected.id}&date=${date}`} className={`${button} bg-forest-deep`}>
             {t("Cek ketersediaan", "Check availability")} <ArrowUpRight size={16} />

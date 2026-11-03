@@ -266,49 +266,49 @@ export function CustomDatePicker({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
-        className={`group flex min-h-11 w-full items-center justify-between border border-[#E2E8E5] bg-white px-3.5 py-2.5 text-left text-sm text-[#1C2621] transition duration-200 hover:border-[#1C2621]/40 focus:border-[#1C2621] focus:outline-none focus:ring-1 focus:ring-[#1C2621] disabled:cursor-not-allowed disabled:opacity-50 ${
-          isOpen ? "border-[#1C2621] ring-1 ring-[#1C2621]" : ""
+        className={`group flex min-h-11 w-full items-center justify-between border border-border bg-card px-3.5 py-2 text-left text-xs sm:text-sm text-foreground transition duration-150 hover:border-primary/50 focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${
+          isOpen ? "border-primary ring-1 ring-primary" : ""
         } ${triggerClassName}`}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2.5 truncate">
           <CalendarIcon
-            size={16}
-            className="shrink-0 text-[#1C2621]/60 group-hover:text-[#1C2621] transition-colors"
+            size={15}
+            className="shrink-0 text-muted-foreground group-hover:text-primary transition-colors"
             aria-hidden="true"
           />
           <span className="truncate">
             {value ? (
-              <span className="font-medium text-[#1C2621]">{formatDisplayDate(value)}</span>
+              <span className="font-medium text-foreground">{formatDisplayDate(value)}</span>
             ) : (
-              <span className="text-[#1C2621]/45">{placeholder}</span>
+              <span className="text-muted-foreground/60">{placeholder}</span>
             )}
           </span>
         </div>
 
         <ChevronDown
-          size={16}
+          size={15}
           aria-hidden="true"
-          className={`ml-2 shrink-0 text-[#1C2621]/60 transition-transform duration-200 group-hover:text-[#1C2621] ${
-            isOpen ? "rotate-180 text-[#1C2621]" : ""
+          className={`ml-2 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-primary ${
+            isOpen ? "rotate-180 text-primary" : ""
           }`}
         />
       </button>
 
       {/* Error text */}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
 
       {/* Date Picker Popover */}
       {isOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="absolute z-50 mt-1 w-72 sm:w-80 border border-[#E2E8E5] bg-[#FFFFFF] p-4 shadow-xl shadow-black/8 focus:outline-none animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 mt-1 w-72 sm:w-80 border border-border bg-card p-4 shadow-xl shadow-primary/5 focus:outline-hidden animate-in fade-in zoom-in-95 duration-100"
         >
           {/* Calendar Header */}
-          <div className="flex items-center justify-between border-b border-[#E2E8E5] pb-3">
-            <span className="text-sm font-semibold tracking-tight text-[#1C2621]">
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <span className="text-sm font-semibold tracking-tight text-foreground">
               {MONTHS_ID[viewMonth]} {viewYear}
             </span>
             <div className="flex items-center gap-1">
@@ -316,7 +316,7 @@ export function CustomDatePicker({
                 type="button"
                 onClick={handlePrevMonth}
                 aria-label="Bulan sebelumnya"
-                className="flex size-7 items-center justify-center border border-[#E2E8E5] text-[#1C2621]/70 transition hover:bg-[#F4F1EA] hover:text-[#1C2621]"
+                className="flex size-7 items-center justify-center border border-border text-foreground transition hover:bg-secondary"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -324,7 +324,7 @@ export function CustomDatePicker({
                 type="button"
                 onClick={handleNextMonth}
                 aria-label="Bulan selanjutnya"
-                className="flex size-7 items-center justify-center border border-[#E2E8E5] text-[#1C2621]/70 transition hover:bg-[#F4F1EA] hover:text-[#1C2621]"
+                className="flex size-7 items-center justify-center border border-border text-foreground transition hover:bg-secondary"
               >
                 <ChevronRight size={14} />
               </button>
@@ -332,7 +332,7 @@ export function CustomDatePicker({
           </div>
 
           {/* Weekday Labels */}
-          <div className="mt-3 grid grid-cols-7 text-center text-2xs font-semibold uppercase tracking-wider text-[#1C2621]/50">
+          <div className="mt-3 grid grid-cols-7 text-center text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
             {DAYS_ID.map((d) => (
               <div key={d} className="py-1">
                 {d}
@@ -350,15 +350,15 @@ export function CustomDatePicker({
                 onClick={() => selectDate(day.dateStr, day.isDisabled)}
                 className={`relative flex h-8 w-full items-center justify-center text-xs transition duration-150 ${
                   day.isSelected
-                    ? "bg-[#1C2621] font-bold text-white shadow-sm"
+                    ? "bg-forest-deep font-bold text-white shadow-xs"
                     : day.isDisabled
-                    ? "cursor-not-allowed opacity-20 text-[#1C2621]"
+                    ? "cursor-not-allowed opacity-20 text-muted-foreground line-through"
                     : day.isCurrentMonth
-                    ? "text-[#1C2621] hover:bg-[#F4F1EA] hover:text-[#1C2621]"
-                    : "text-[#1C2621]/30 hover:bg-[#F4F1EA]/60 hover:text-[#1C2621]/60"
+                    ? "text-foreground hover:bg-secondary hover:text-primary"
+                    : "text-muted-foreground/40 hover:bg-secondary/60 hover:text-foreground"
                 } ${
                   day.isToday && !day.isSelected
-                    ? "border border-[#1C2621]/40 font-semibold"
+                    ? "border border-primary font-semibold text-primary"
                     : ""
                 }`}
               >
@@ -368,25 +368,25 @@ export function CustomDatePicker({
           </div>
 
           {/* Quick Actions Footer */}
-          <div className="mt-4 flex items-center justify-between border-t border-[#E2E8E5] pt-3 text-xs">
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
             <button
               type="button"
               onClick={handleQuickToday}
-              className="text-2xs font-medium uppercase tracking-wider text-[#1C2621]/70 hover:text-[#1C2621] hover:underline"
+              className="text-2xs font-semibold uppercase tracking-wider text-primary hover:underline"
             >
               Hari Ini
             </button>
             <button
               type="button"
               onClick={handleQuickTomorrow}
-              className="text-2xs font-medium uppercase tracking-wider text-[#1C2621]/70 hover:text-[#1C2621] hover:underline"
+              className="text-2xs font-semibold uppercase tracking-wider text-primary hover:underline"
             >
               Besok
             </button>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-2xs font-semibold uppercase tracking-wider text-[#1C2621] hover:text-black"
+              className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
             >
               Tutup
             </button>

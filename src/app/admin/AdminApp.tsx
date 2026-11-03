@@ -164,13 +164,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
       section={section}
       onSignOut={onSignOut}
     >
-      <motion.div
-        key={section}
-        initial={reduced ? false : { opacity: 0.9 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: reduced ? 0 : 0.15, ease: "easeOut" }}
-        className="mx-auto max-w-[1600px] px-5 py-7 md:px-9 md:py-9"
-      >
+      <div className="mx-auto max-w-[1600px] px-5 py-7 md:px-9 md:py-9">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-5">
           <div>
             <p className={`${eyebrow} mb-3 text-sage`}>{active?.group || (active ? navigation.slice(0, navigation.indexOf(active) + 1).reverse().find((item) => item.group)?.group : "Admin")}</p>
@@ -180,7 +174,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
           {allowed && ["", "live-board", "bookings", "schedule"].includes(section) && (
             <div className="flex flex-wrap gap-2">
               {section === "schedule" && <button type="button" className={outlineButton} onClick={() => openOperation("block")}><LockKeyhole size={14} /> Blokir slot</button>}
-              <button type="button" className={button} onClick={() => openOperation("booking")}><Plus size={16} /> Booking manual</button>
+              <button type="button" className={button} onClick={() => openOperation("booking")}><Plus size={16} /> Booking walk-in / manual</button>
             </div>
           )}
         </div>
@@ -208,7 +202,7 @@ function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut
           <p>{club} · Manajemen klub</p>
           <p>Semua jadwal dalam WIB</p>
         </footer>
-      </motion.div>
+      </div>
       {detail && <BookingDetailDialog booking={detail} close={() => setDetail(null)} />}
       {operation && <OperationDialog kind={operation.kind} preset={operation.preset} close={() => setOperation(null)} />}
     </AdminFrame>

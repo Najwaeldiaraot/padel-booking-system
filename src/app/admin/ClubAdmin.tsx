@@ -20,6 +20,7 @@ import {
 } from "../club"
 import { errorMessage, policyLines } from "../i18n"
 import { Spinner } from "../ui"
+import { LuxurySelect } from "./CustomUI"
 import { AdminDialog, Empty, Panel, id, useAdmin } from "./shared"
 import { TestingModeCard } from "./Operations"
 
@@ -114,7 +115,18 @@ function CourtEditor({ court, close }: { court?: Court; close: () => void }) {
           <Text label="English (opsional)" lang="en" max={70} value={draft.en?.name || ""} onChange={(name) => set({ en: { ...draft.en, name } })} />
         </Pair>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs">Tipe<select value={draft.type} onChange={(event) => set({ type: event.target.value as Court["type"] })} className={`${field} mt-2`}><option>Outdoor</option><option>Indoor</option></select></label>
+          <div>
+            <span className="block text-xs mb-1 font-medium">Tipe</span>
+            <LuxurySelect
+              value={draft.type}
+              onChange={(val) => set({ type: val as Court["type"] })}
+              options={[
+                { value: "Outdoor", label: "Outdoor" },
+                { value: "Indoor", label: "Indoor" },
+              ]}
+              className="w-full"
+            />
+          </div>
           <label className="block text-xs">Harga per jam (Rp)<input type="number" min={10000} step={1000} value={draft.price} onChange={(event) => set({ price: Number(event.target.value) })} className={`${field} mt-2`} /></label>
         </div>
         <Pair label="Deskripsi">
@@ -367,8 +379,24 @@ function IdentityEditor({ close }: { close: () => void }) {
           <Text label="English" lang="en" multiline max={600} value={draft.en?.description || ""} onChange={(value) => setEn("description", value)} />
         </Pair>
         <div className="grid grid-cols-2 gap-3">
-          <label className="block text-xs">Jam buka (WIB)<select value={draft.openHour} onChange={(event) => set({ openHour: Number(event.target.value) })} className={`${field} mt-2`}>{Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour}>{clock(hour)}</option>)}</select></label>
-          <label className="block text-xs">Jam tutup (WIB)<select value={draft.closeHour} onChange={(event) => set({ closeHour: Number(event.target.value) })} className={`${field} mt-2`}>{Array.from({ length: 24 }, (_, hour) => <option key={hour} value={hour + 1}>{clock(hour + 1)}</option>)}</select></label>
+          <div>
+            <span className="block text-xs mb-1 font-medium">Jam buka (WIB)</span>
+            <LuxurySelect
+              value={draft.openHour}
+              onChange={(val) => set({ openHour: Number(val) })}
+              options={Array.from({ length: 24 }, (_, hour) => ({ value: hour, label: clock(hour) }))}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <span className="block text-xs mb-1 font-medium">Jam tutup (WIB)</span>
+            <LuxurySelect
+              value={draft.closeHour}
+              onChange={(val) => set({ closeHour: Number(val) })}
+              options={Array.from({ length: 24 }, (_, hour) => ({ value: hour + 1, label: clock(hour + 1) }))}
+              className="w-full"
+            />
+          </div>
         </div>
         <SaveBar busy={busy} error={error} close={close} />
       </form>
@@ -504,13 +532,18 @@ function AddMember({ close }: { close: () => void }) {
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); save(() => api.admin.addStaff({ name, email, role, password }), "Anggota tim ditambahkan.") }}>
         <Text label="Nama" required max={60} value={name} onChange={setName} />
         <label className="block text-xs">Email<input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} className={`${field} mt-2`} /></label>
-        <label className="block text-xs">
-          Peran
-          <select value={role} onChange={(event) => setRole(event.target.value as "staff" | "owner")} className={`${field} mt-2`}>
-            <option value="staff">Staf · booking, jadwal, pemain, ulasan</option>
-            <option value="owner">Pemilik · akses penuh termasuk transaksi & pengaturan</option>
-          </select>
-        </label>
+        <div>
+          <span className="block text-xs mb-1 font-medium">Peran</span>
+          <LuxurySelect
+            value={role}
+            onChange={(val) => setRole(val as "staff" | "owner")}
+            options={[
+              { value: "staff", label: "Staf · booking, jadwal, pemain, ulasan" },
+              { value: "owner", label: "Pemilik · akses penuh termasuk transaksi & pengaturan" },
+            ]}
+            className="w-full"
+          />
+        </div>
         <label className="block text-xs">Kata sandi sementara<input type="text" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} className={`${field} mt-2 font-mono`} /></label>
         <p className="text-2xs leading-5 text-muted-foreground">Bagikan kata sandi sementara secara langsung. Setelah backend terhubung, undangan dikirim lewat email.</p>
         <SaveBar busy={busy} error={error} close={close} label="Tambah anggota" />

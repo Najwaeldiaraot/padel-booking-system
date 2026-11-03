@@ -221,6 +221,8 @@ function Root() {
             />
           ) : !ready ? (
             <PageLoader label={t("Menyiapkan lapangan…", "Getting the courts ready…")} />
+          ) : isAdmin ? (
+            <Outlet />
           ) : (
             <motion.div
               key={location.pathname}

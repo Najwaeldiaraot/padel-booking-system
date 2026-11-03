@@ -453,7 +453,7 @@ export function getCourtAvailability({
     startsAt(date, slot) > now &&
     !busy.some(
       (item) =>
-        item.court === court &&
+        Number(item.court) === Number(court) &&
         item.date === date &&
         (!ignoreBookingId || item.bookingId !== ignoreBookingId) &&
         slot < endTime(item.time, item.duration) &&

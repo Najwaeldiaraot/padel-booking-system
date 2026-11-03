@@ -9,6 +9,7 @@ import {
   Clock,
   Grid2X2,
   RefreshCw,
+  RotateCcw,
   Search,
   Sliders,
   Timer,
@@ -77,6 +78,8 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
   const [search, setSearch] = useState("")
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<"waiting" | "playing" | "completed" | null>(null)
 
   // Baca status Mode Testing / Bypass dari localStorage
   const [isBypass, setIsBypass] = useState<boolean>(() => {
@@ -166,6 +169,53 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
     }
   }
 
+  // Aksi interaktif: Undo Check-in (Kembali ke Menunggu Check-in)
+  const handleUndoCheckin = async (bookingId: string) => {
+    setProcessingId(bookingId)
+    try {
+      await api.admin.undoCheckin(bookingId)
+      notify(`Check-in ${bookingId} dibatalkan. Booking dikembalikan ke status Menunggu Check-in.`)
+      await reload()
+    } catch (err: any) {
+      notify(err?.message || "Gagal membatalkan check-in.")
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  // Aksi interaktif: Undo Selesai (Kembali ke Sedang Bermain)
+  const handleUndoComplete = async (bookingId: string) => {
+    setProcessingId(bookingId)
+    try {
+      await api.admin.undoComplete(bookingId)
+      notify(`Status selesai ${bookingId} dibatalkan. Pemain dikembalikan ke lapangan (Sedang Bermain).`)
+      await reload()
+    } catch (err: any) {
+      notify(err?.message || "Gagal mengembalikan status booking.")
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  // Handle Drag and Drop antar kolom
+  const handleDrop = (e: React.DragEvent, targetCol: "waiting" | "playing" | "completed") => {
+    e.preventDefault()
+    setDragOverCol(null)
+    const bookingId = e.dataTransfer.getData("text/plain")
+    const sourceCol = e.dataTransfer.getData("sourceCol")
+    if (!bookingId || sourceCol === targetCol) return
+
+    if (sourceCol === "waiting" && targetCol === "playing") {
+      handleCheckin(bookingId)
+    } else if (sourceCol === "playing" && targetCol === "waiting") {
+      handleUndoCheckin(bookingId)
+    } else if (sourceCol === "playing" && targetCol === "completed") {
+      handleComplete(bookingId)
+    } else if (sourceCol === "completed" && targetCol === "playing") {
+      handleUndoComplete(bookingId)
+    }
+  }
+
   const handleManualRefresh = async () => {
     setIsRefreshing(true)
     try {
@@ -249,10 +299,23 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
         </div>
       )}
 
-      {/* Kanban 3 Kolom */}
+      {/* Kanban 3 Kolom dengan Drag and Drop & Undo */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ================= KOLOM 1: MENUNGGU CHECK-IN ================= */}
-        <section className="flex flex-col border border-border bg-card">
+        <section
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            setDragOverCol("waiting")
+          }}
+          onDragLeave={() => setDragOverCol(null)}
+          onDrop={(e) => handleDrop(e, "waiting")}
+          className={`flex flex-col border transition-all ${
+            dragOverCol === "waiting"
+              ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+              : "border-border bg-card"
+          }`}
+        >
           <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
             <div className="flex items-center gap-2.5">
               <span className="flex size-7 items-center justify-center bg-secondary text-primary">
@@ -260,7 +323,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Menunggu Check-in</h3>
-                <p className="text-2xs text-muted-foreground">Booking terkonfirmasi siap main</p>
+                <p className="text-2xs text-muted-foreground">Booking terkonfirmasi siap main (Tarik ke sini untuk batal check-in)</p>
               </div>
             </div>
             <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
@@ -270,16 +333,30 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
 
           <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             {waitingList.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
+              <div className="py-12 text-center text-xs text-muted-foreground border-2 border-dashed border-border/50">
                 <Clock size={28} className="mx-auto mb-2 text-muted-foreground/40" />
                 <p className="font-medium">Tidak ada antrean check-in</p>
-                <p className="mt-1 text-2xs">Semua booking hari ini sudah check-in atau belum ada jadwal baru.</p>
+                <p className="mt-1 text-2xs">Tarik kartu booking ke sini untuk membatalkan check-in.</p>
               </div>
             ) : (
               waitingList.map((b) => (
                 <article
                   key={b.id}
-                  className="border border-border bg-background p-4 transition-colors hover:border-primary/50"
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", b.id)
+                    e.dataTransfer.setData("sourceCol", "waiting")
+                    setDraggingId(b.id)
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null)
+                    setDragOverCol(null)
+                  }}
+                  className={`cursor-grab active:cursor-grabbing border bg-background p-4 transition-all ${
+                    draggingId === b.id
+                      ? "opacity-40 scale-[0.98] border-dashed border-primary"
+                      : "border-border hover:border-primary/50 shadow-xs"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -336,7 +413,20 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
         </section>
 
         {/* ================= KOLOM 2: SEDANG BERMAIN ================= */}
-        <section className="flex flex-col border border-border bg-card">
+        <section
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            setDragOverCol("playing")
+          }}
+          onDragLeave={() => setDragOverCol(null)}
+          onDrop={(e) => handleDrop(e, "playing")}
+          className={`flex flex-col border transition-all ${
+            dragOverCol === "playing"
+              ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+              : "border-border bg-card"
+          }`}
+        >
           <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
             <div className="flex items-center gap-2.5">
               <span className="flex size-7 items-center justify-center bg-forest-deep text-white">
@@ -350,7 +440,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                     AKTIF
                   </span>
                 </div>
-                <p className="text-2xs text-muted-foreground">Pemain berada di lapangan</p>
+                <p className="text-2xs text-muted-foreground">Pemain berada di lapangan (Tarik ke sini untuk check-in / kembalikan)</p>
               </div>
             </div>
             <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
@@ -360,10 +450,10 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
 
           <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             {playingList.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
+              <div className="py-12 text-center text-xs text-muted-foreground border-2 border-dashed border-border/50">
                 <Timer size={28} className="mx-auto mb-2 text-muted-foreground/40" />
                 <p className="font-medium">Tidak ada sesi aktif saat ini</p>
-                <p className="mt-1 text-2xs">Pemain yang check-in akan otomatis tampil dengan live countdown di sini.</p>
+                <p className="mt-1 text-2xs">Tarik kartu ke sini untuk check-in instan, atau klik Check-in.</p>
               </div>
             ) : (
               playingList.map((b) => {
@@ -371,10 +461,22 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                 return (
                   <article
                     key={b.id}
-                    className={`border p-4 transition-colors ${
-                      countdown.isExpired
-                        ? "border-destructive/60 bg-danger-soft/20"
-                        : "border-primary/40 bg-background hover:border-primary"
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", b.id)
+                      e.dataTransfer.setData("sourceCol", "playing")
+                      setDraggingId(b.id)
+                    }}
+                    onDragEnd={() => {
+                      setDraggingId(null)
+                      setDragOverCol(null)
+                    }}
+                    className={`cursor-grab active:cursor-grabbing border p-4 transition-all ${
+                      draggingId === b.id
+                        ? "opacity-40 scale-[0.98] border-dashed border-primary"
+                        : countdown.isExpired
+                          ? "border-destructive/60 bg-danger-soft/20 shadow-xs"
+                          : "border-primary/40 bg-background hover:border-primary shadow-xs"
                     }`}
                   >
                     {/* Header Kartu */}
@@ -425,7 +527,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                       </div>
                     </div>
 
-                    {/* Tombol Interaktif: Selesai Bermain */}
+                    {/* Tombol Interaktif: Selesai Bermain, Undo Check-in, & Detail */}
                     <div className="mt-4 flex items-center gap-2">
                       <button
                         type="button"
@@ -445,6 +547,19 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                           </>
                         )}
                       </button>
+
+                      <button
+                        type="button"
+                        disabled={processingId === b.id}
+                        onClick={() => handleUndoCheckin(b.id)}
+                        className={`${outlineButton} !min-h-9 px-2.5 text-xs gap-1 text-muted-foreground hover:text-foreground`}
+                        title="Batalkan check-in (Kembalikan ke antrean)"
+                        aria-label="Batalkan check-in"
+                      >
+                        <RotateCcw size={13} />
+                        <span className="hidden sm:inline">Batal</span>
+                      </button>
+
                       {openDetail && (
                         <button
                           type="button"
@@ -464,7 +579,20 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
         </section>
 
         {/* ================= KOLOM 3: SELESAI ================= */}
-        <section className="flex flex-col border border-border bg-card">
+        <section
+          onDragOver={(e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+            setDragOverCol("completed")
+          }}
+          onDragLeave={() => setDragOverCol(null)}
+          onDrop={(e) => handleDrop(e, "completed")}
+          className={`flex flex-col border transition-all ${
+            dragOverCol === "completed"
+              ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+              : "border-border bg-card"
+          }`}
+        >
           <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-4">
             <div className="flex items-center gap-2.5">
               <span className="flex size-7 items-center justify-center bg-secondary text-primary">
@@ -472,7 +600,7 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
               </span>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Selesai</h3>
-                <p className="text-2xs text-muted-foreground">Sesi tuntas & siap dirotasi</p>
+                <p className="text-2xs text-muted-foreground">Sesi tuntas & siap dirotasi (Tarik ke sini untuk selesai)</p>
               </div>
             </div>
             <span className="border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
@@ -482,16 +610,30 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
 
           <div className="flex-1 space-y-3 p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
             {completedList.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
+              <div className="py-12 text-center text-xs text-muted-foreground border-2 border-dashed border-border/50">
                 <CheckCircle2 size={28} className="mx-auto mb-2 text-muted-foreground/40" />
                 <p className="font-medium">Belum ada sesi selesai</p>
-                <p className="mt-1 text-2xs">Sesi yang ditandai selesai akan diarsipkan di sini.</p>
+                <p className="mt-1 text-2xs">Tarik kartu yang sudah selesai ke kolom ini.</p>
               </div>
             ) : (
               completedList.map((b) => (
                 <article
                   key={b.id}
-                  className="border border-border bg-background p-3.5 transition-colors hover:border-border"
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", b.id)
+                    e.dataTransfer.setData("sourceCol", "completed")
+                    setDraggingId(b.id)
+                  }}
+                  onDragEnd={() => {
+                    setDraggingId(null)
+                    setDragOverCol(null)
+                  }}
+                  className={`cursor-grab active:cursor-grabbing border bg-background p-3.5 transition-all ${
+                    draggingId === b.id
+                      ? "opacity-40 scale-[0.98] border-dashed border-primary"
+                      : "border-border hover:border-border shadow-xs"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -508,17 +650,27 @@ export default function AdminLiveBoard({ openDetail }: AdminLiveBoardProps) {
                     <span>{b.time}–{endTime(b.time, b.duration)} WIB</span>
                   </div>
 
-                  {openDetail && (
-                    <div className="mt-3 pt-2 border-t border-border">
+                  <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5">
+                    <button
+                      type="button"
+                      disabled={processingId === b.id}
+                      onClick={() => handleUndoComplete(b.id)}
+                      className={`${outlineButton} !min-h-8 px-2.5 text-2xs gap-1.5`}
+                      title="Kembalikan ke kolom Sedang Bermain"
+                    >
+                      <RotateCcw size={11} /> Kembalikan ke Lapangan
+                    </button>
+
+                    {openDetail && (
                       <button
                         type="button"
                         onClick={() => openDetail(b)}
                         className="text-2xs text-primary hover:underline font-medium"
                       >
-                        Lihat Rincian Sesi →
+                        Detail →
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </article>
               ))
             )}

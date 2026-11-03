@@ -16,6 +16,7 @@ import {
   type BookingStatus,
   type Venue,
 } from "./club"
+import { CustomDatePicker } from "../components/ui/CustomDatePicker"
 import { bookingStatusLabel, useContent, useLocale } from "./i18n"
 
 export function BookingStatusBadge({ status }: { status: BookingStatus }) {
@@ -66,19 +67,18 @@ export function SlotPicker({
   const available = slots.some((_, index) => canSelect(index))
   return (
     <div>
-      <label className="block text-xs font-medium">
-        {t("Tanggal main", "Date")}
-        <input
-          required
-          type="date"
-          min={today()}
+      <div className="block text-xs font-medium">
+        <span className="block mb-2">{t("Tanggal main", "Date")}</span>
+        <CustomDatePicker
           value={date}
-          onChange={(event) => {
-            if (event.target.value && event.target.value >= today()) onDateChange(event.target.value)
+          minDate={today()}
+          onChange={(newDate) => {
+            if (newDate && newDate >= today()) onDateChange(newDate)
           }}
-          className="mt-2 min-h-12 w-full border border-border bg-card px-4 text-sm focus:border-primary focus:outline-2 focus:outline-ring"
+          placeholder={t("Pilih tanggal main", "Select play date")}
+          triggerClassName="!min-h-12 !bg-card !border-border !text-sm"
         />
-      </label>
+      </div>
       <p className="mt-5 text-xs font-medium">{t("Jam mulai · WIB", "Start time · WIB")}</p>
       <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
         {slots.map((slot, index) => {

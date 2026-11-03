@@ -190,25 +190,10 @@ export function Panel({ title, description, action, children, className = "" }: 
   )
 }
 
+import { LuxuryDatePicker } from "./CustomUI"
+
 export function DatePicker({ value, onChange }: { value: string; onChange: (date: string) => void }) {
-  return (
-    <div className="flex shrink-0 items-center border border-border bg-card">
-      <button type="button" aria-label="Hari sebelumnya" onClick={() => onChange(nextDay(value, -1))} className="flex size-11 items-center justify-center hover:bg-secondary">
-        <ChevronLeft size={16} />
-      </button>
-      <input
-        aria-label="Tanggal operasional"
-        type="date"
-        value={value}
-        onChange={(event) => event.target.value && onChange(event.target.value)}
-        className="min-h-11 border-x border-border bg-transparent px-2 text-xs"
-      />
-      <button type="button" aria-label="Hari berikutnya" onClick={() => onChange(nextDay(value, 1))} className="flex size-11 items-center justify-center hover:bg-secondary">
-        <ChevronRight size={16} />
-      </button>
-      <span className="sr-only">{dateLabel(value)}</span>
-    </div>
-  )
+  return <LuxuryDatePicker value={value} onChange={onChange} />
 }
 
 export function AdminDialog({ title, close, children, wide }: { title: string; close: () => void; children: ReactNode; wide?: boolean }) {

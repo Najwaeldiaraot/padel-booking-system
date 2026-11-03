@@ -634,11 +634,11 @@ export const api = {
             for (const b of d.bookings) {
               if (isActiveBooking(b.status)) {
                 const exists = merged.some(
-                  (item) => item.court === b.court && item.date === b.date && item.time === b.time
+                  (item) => Number(item.court) === Number(b.court) && item.date === b.date && item.time === b.time
                 )
                 if (!exists) {
                   merged.push({
-                    court: b.court,
+                    court: Number(b.court),
                     date: b.date,
                     time: b.time,
                     duration: b.duration,
@@ -1169,6 +1169,46 @@ export const api = {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "complete" }),
+        }).catch(() => {})
+      }
+      return structuredClone(booking)
+    },
+    async undoCheckin(bookingId: string): Promise<Booking> {
+      await wait(150)
+      const d = await db()
+      const actor = requireStaff(d)
+      const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
+      if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
+      if (booking.status !== "checked_in") throw new ApiError("invalid_input", "Hanya booking sedang bermain yang dapat dibatalkan check-in.")
+      booking.status = "confirmed"
+      booking.history.push(event("updated", actor.role === "owner" ? "owner" : "staff", "Check-in dibatalkan, kembali menunggu"))
+      commit()
+
+      if (typeof window !== "undefined") {
+        fetch(`/api/bookings/${booking.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "undo_checkin" }),
+        }).catch(() => {})
+      }
+      return structuredClone(booking)
+    },
+    async undoComplete(bookingId: string): Promise<Booking> {
+      await wait(150)
+      const d = await db()
+      const actor = requireStaff(d)
+      const booking = d.bookings.find((item) => item.id.toLowerCase() === bookingId.trim().toLowerCase())
+      if (!booking) throw new ApiError("not_found", "Booking tidak ditemukan.")
+      if (booking.status !== "completed") throw new ApiError("invalid_input", "Hanya booking selesai yang dapat dikembalikan.")
+      booking.status = "checked_in"
+      booking.history.push(event("updated", actor.role === "owner" ? "owner" : "staff", "Status selesai dibatalkan, kembali ke lapangan"))
+      commit()
+
+      if (typeof window !== "undefined") {
+        fetch(`/api/bookings/${booking.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "undo_complete" }),
         }).catch(() => {})
       }
       return structuredClone(booking)

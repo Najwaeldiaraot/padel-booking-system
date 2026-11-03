@@ -132,6 +132,41 @@ export async function PATCH(
       return NextResponse.json(updated);
     }
 
+    if (action === "undo_checkin") {
+      const updated = await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CONFIRMED",
+          checkedInAt: null,
+        },
+        include: {
+          court: true,
+          payment: true,
+        },
+      });
+      return NextResponse.json({
+        ...updated,
+        status: "CONFIRMED",
+      });
+    }
+
+    if (action === "undo_complete") {
+      const updated = await prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CHECKED_IN",
+        },
+        include: {
+          court: true,
+          payment: true,
+        },
+      });
+      return NextResponse.json({
+        ...updated,
+        status: "CHECKED_IN",
+      });
+    }
+
     if (action === "reschedule" && date && startTime) {
       const updated = await prisma.booking.update({
         where: { id: booking.id },

@@ -3,17 +3,17 @@
 import React, { useState, useRef, useEffect, useId, useCallback } from "react";
 import { ChevronDown, Check } from "lucide-react";
 
-export interface SelectOption {
-  value: string | number;
+export interface SelectOption<T = string | number> {
+  value: T;
   label: string;
   sublabel?: string;
   disabled?: boolean;
 }
 
-export interface CustomSelectProps {
-  value: string | number;
-  onChange: (value: string | number) => void;
-  options: SelectOption[];
+export interface CustomSelectProps<T = any> {
+  value: T;
+  onChange: (value: T) => void;
+  options: Array<{ value: T; label: string; sublabel?: string; disabled?: boolean }>;
   placeholder?: string;
   label?: string;
   disabled?: boolean;
@@ -178,36 +178,36 @@ export function CustomSelect({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-labelledby={label ? selectId : undefined}
-        className={`group flex min-h-11 w-full items-center justify-between border border-[#E2E8E5] bg-white px-4 py-2.5 text-left text-sm text-[#1C2621] transition duration-200 hover:border-[#1C2621]/40 focus:border-[#1C2621] focus:outline-none focus:ring-1 focus:ring-[#1C2621] disabled:cursor-not-allowed disabled:opacity-50 ${
-          isOpen ? "border-[#1C2621] ring-1 ring-[#1C2621]" : ""
+        className={`group flex min-h-11 w-full items-center justify-between border border-border bg-card px-4 py-2 text-left text-xs sm:text-sm text-foreground transition duration-150 hover:border-primary/50 focus:border-primary focus:outline-hidden focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${
+          isOpen ? "border-primary ring-1 ring-primary" : ""
         } ${triggerClassName}`}
       >
         <span className="truncate">
           {selectedOption ? (
-            <span className="font-medium text-[#1C2621]">
+            <span className="font-medium text-foreground">
               {selectedOption.label}
               {selectedOption.sublabel && (
-                <span className="ml-2 text-xs text-[#1C2621]/60 font-normal">
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
                   {selectedOption.sublabel}
                 </span>
               )}
             </span>
           ) : (
-            <span className="text-[#1C2621]/45">{placeholder}</span>
+            <span className="text-muted-foreground/60">{placeholder}</span>
           )}
         </span>
 
         <ChevronDown
-          size={16}
+          size={15}
           aria-hidden="true"
-          className={`ml-2 shrink-0 text-[#1C2621]/60 transition-transform duration-200 group-hover:text-[#1C2621] ${
-            isOpen ? "rotate-180 text-[#1C2621]" : ""
+          className={`ml-2 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:text-primary ${
+            isOpen ? "rotate-180 text-primary" : ""
           }`}
         />
       </button>
 
       {/* Error Message */}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
 
       {/* Dropdown Options List */}
       {isOpen && (
@@ -218,10 +218,10 @@ export function CustomSelect({
           aria-activedescendant={
             highlightedIndex >= 0 ? `${selectId}-opt-${highlightedIndex}` : undefined
           }
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-[#E2E8E5] bg-[#FFFFFF] py-1 shadow-xl shadow-black/8 focus:outline-none animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto border border-border bg-card py-1 shadow-xl shadow-primary/5 focus:outline-hidden animate-in fade-in zoom-in-95 duration-100"
         >
           {options.length === 0 ? (
-            <li className="px-4 py-3 text-xs text-[#1C2621]/50 text-center">
+            <li className="px-4 py-3 text-xs text-muted-foreground text-center">
               Tidak ada opsi tersedia
             </li>
           ) : (
@@ -238,28 +238,28 @@ export function CustomSelect({
                   aria-disabled={opt.disabled}
                   onMouseEnter={() => !opt.disabled && setHighlightedIndex(idx)}
                   onClick={() => handleSelect(opt)}
-                  className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs sm:text-sm transition-colors duration-150 ${
+                  className={`flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs transition-colors duration-150 ${
                     opt.disabled
                       ? "cursor-not-allowed opacity-35"
                       : isSelected
-                      ? "bg-[#F4F1EA] font-semibold text-[#1C2621]"
+                      ? "bg-secondary font-semibold text-primary"
                       : isHighlighted
-                      ? "bg-[#F4F1EA]/70 text-[#1C2621]"
-                      : "text-[#1C2621]/80 hover:bg-[#F4F1EA]/60 hover:text-[#1C2621]"
+                      ? "bg-secondary/70 text-foreground"
+                      : "text-foreground hover:bg-secondary/50"
                   }`}
                 >
                   <div className="flex flex-col truncate pr-2">
                     <span className="truncate">{opt.label}</span>
                     {opt.sublabel && (
-                      <span className="text-2xs text-[#1C2621]/50 font-normal">
+                      <span className="text-2xs text-muted-foreground font-normal">
                         {opt.sublabel}
                       </span>
                     )}
                   </div>
                   {isSelected && (
                     <Check
-                      size={15}
-                      className="shrink-0 text-[#1C2621]"
+                      size={14}
+                      className="shrink-0 text-primary"
                       aria-hidden="true"
                     />
                   )}

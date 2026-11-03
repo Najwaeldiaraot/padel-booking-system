@@ -40,6 +40,7 @@ import {
 } from "../club"
 import { errorMessage } from "../i18n"
 import { ScrollArea, Spinner } from "../ui"
+import { LuxurySelect, LuxuryDatePicker } from "./CustomUI"
 import {
   AdminDialog,
   DatePicker,
@@ -250,8 +251,8 @@ function ScheduleGrid({ date, onOpen, onCreate }: { date: string; onOpen: (booki
                       className={`group flex min-h-11 flex-1 items-center justify-center text-2xs transition ${
                         booking
                           ? booking.status === "completed"
-                            ? "bg-sage text-white"
-                            : "bg-forest-muted text-white hover:bg-primary"
+                            ? "bg-forest-deep text-white"
+                            : "bg-clay text-white hover:bg-clay/90"
                           : block
                             ? "bg-muted text-muted-foreground"
                             : past
@@ -269,7 +270,7 @@ function ScheduleGrid({ date, onOpen, onCreate }: { date: string; onOpen: (booki
         </div>
       </ScrollArea>
       <div className="flex flex-wrap gap-4 border-t border-border px-5 py-3 text-2xs text-muted-foreground">
-        {[["bg-forest-muted", "Terbooking"], ["bg-sage", "Selesai"], ["bg-secondary", "Tersedia"], ["bg-muted", "Diblokir"]].map(([tone, label]) => (
+        {[["bg-clay", "Terbooking"], ["bg-forest-deep", "Selesai"], ["bg-secondary", "Tersedia"], ["bg-muted", "Diblokir"]].map(([tone, label]) => (
           <span key={label} className="flex items-center gap-1.5"><span className={`size-2.5 ${tone}`} aria-hidden="true" />{label}</span>
         ))}
       </div>
@@ -288,52 +289,100 @@ export function OperationDialog({ kind, preset, close }: { kind: "booking" | "bl
   const [time, setTime] = useState(preset?.time || "")
   const [name, setName] = useState("")
   const [contact, setContact] = useState("")
+  const [isWalkInInstant, setIsWalkInInstant] = useState(true)
   const [reason, setReason] = useState("Perawatan lapangan")
   const { busy, error, run } = useMutation(close)
   const starts = availableStarts(club, busySlots, court, date, duration)
   const chosen = starts.includes(time) ? time : ""
   const price = courts.find((item) => item.id === court)?.price || 0
   return (
-    <AdminDialog title={kind === "block" ? "Blokir slot lapangan" : "Booking manual"} close={close}>
+    <AdminDialog title={kind === "block" ? "Blokir slot lapangan" : "Booking Lapangan (Walk-in & Manual)"} close={close}>
       <form
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault()
           if (!chosen) return
-          if (kind === "block") run(() => api.admin.addBlock({ court, date, time: chosen, duration, reason }), "Slot berhasil diblokir.")
-          else run(() => api.admin.createBooking({ name, contact, court, date, time: chosen, duration }), "Booking manual tersimpan.")
+          if (kind === "block") {
+            run(() => api.admin.addBlock({ court, date, time: chosen, duration, reason }), "Slot berhasil diblokir.")
+          } else {
+            run(async () => {
+              const b = await api.admin.createBooking({ name, contact, court, date, time: chosen, duration })
+              if (isWalkInInstant) {
+                await api.admin.checkin(b.id)
+              }
+            }, isWalkInInstant ? "Pemain walk-in berhasil didaftarkan dan langsung masuk status Sedang Bermain!" : "Booking manual tersimpan.")
+          }
         }}
       >
         <p className="text-xs leading-6 text-muted-foreground">
-          {kind === "block" ? "Slot yang diblokir langsung tidak tersedia di halaman booking pemain." : "Untuk pemain walk-in atau pemesanan via telepon. Pembayaran dicatat tunai di klub."}
+          {kind === "block" ? "Slot yang diblokir langsung tidak tersedia di halaman booking pemain." : "Untuk pemain walk-in langsung main atau reservasi manual. Pembayaran dicatat tunai di klub."}
         </p>
         {kind === "booking" && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs">Nama pemain<input required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} className={`${field} mt-2`} /></label>
-            <label className="block text-xs">Kontak <span className="text-muted-foreground">(opsional)</span><input maxLength={100} value={contact} onChange={(event) => setContact(event.target.value)} placeholder="Email atau nomor HP" className={`${field} mt-2`} /></label>
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs">Nama pemain<input required maxLength={80} value={name} onChange={(event) => setName(event.target.value)} placeholder="Contoh: Budi Santoso" className={`${field} mt-2`} /></label>
+              <label className="block text-xs">Kontak <span className="text-muted-foreground">(opsional)</span><input maxLength={100} value={contact} onChange={(event) => setContact(event.target.value)} placeholder="Email atau nomor HP" className={`${field} mt-2`} /></label>
+            </div>
+
+            <label className="flex items-start gap-3 border border-border bg-surface p-3 cursor-pointer hover:border-primary/50 transition">
+              <input
+                type="checkbox"
+                checked={isWalkInInstant}
+                onChange={(e) => setIsWalkInInstant(e.target.checked)}
+                className="mt-0.5 size-4 accent-forest-deep"
+              />
+              <div className="text-xs">
+                <span className="font-semibold text-foreground block">Pemain sudah tiba di klub (Langsung Main ke Lapangan)</span>
+                <span className="text-2xs text-muted-foreground block mt-0.5">
+                  Langsung ubah status menjadi &quot;Sedang Bermain&quot; di Papan Antrean tanpa perlu check-in terpisah.
+                </span>
+              </div>
+            </label>
+          </>
         )}
-        <label className="block text-xs">
-          Lapangan
-          <select value={court} onChange={(event) => setCourt(Number(event.target.value))} className={`${field} mt-2`}>
-            {courts.map((item) => <option key={item.id} value={item.id}>{item.name} · {money(item.price)}/jam</option>)}
-          </select>
-        </label>
+        <div className="space-y-1">
+          <span className="block text-xs font-medium">Lapangan</span>
+          <LuxurySelect
+            value={court}
+            onChange={(val) => setCourt(Number(val))}
+            options={courts.map((item) => ({
+              value: item.id,
+              label: `${item.name} · ${money(item.price)}/jam`,
+            }))}
+            className="w-full"
+          />
+        </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <label className="block text-xs">Tanggal<input required type="date" min={today()} value={date} onChange={(event) => event.target.value && setDate(event.target.value)} className={`${field} mt-2`} /></label>
-          <label className="block text-xs">
-            Durasi
-            <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} className={`${field} mt-2`}>
-              {[30, 60, 90, 120, 180, 240].map((value) => <option key={value} value={value}>{value} menit</option>)}
-            </select>
-          </label>
-          <label className="block text-xs">
-            Mulai · WIB
-            <select required value={chosen} onChange={(event) => setTime(event.target.value)} className={`${field} mt-2`}>
-              <option value="">{starts.length ? "Pilih jam" : "Tidak ada slot"}</option>
-              {starts.map((slot) => <option key={slot} value={slot}>{slot}–{endTime(slot, duration)}</option>)}
-            </select>
-          </label>
+          <div className="space-y-1">
+            <span className="block text-xs font-medium">Tanggal</span>
+            <LuxuryDatePicker value={date} onChange={setDate} />
+          </div>
+          <div className="space-y-1">
+            <span className="block text-xs font-medium">Durasi</span>
+            <LuxurySelect
+              value={duration}
+              onChange={(val) => setDuration(Number(val))}
+              options={[30, 60, 90, 120, 180, 240].map((value) => ({
+                value,
+                label: `${value} menit`,
+              }))}
+              className="w-full"
+            />
+          </div>
+          <div className="space-y-1">
+            <span className="block text-xs font-medium">Mulai · WIB</span>
+            <LuxurySelect
+              value={chosen}
+              onChange={(val) => setTime(String(val))}
+              options={
+                starts.length
+                  ? starts.map((slot) => ({ value: slot, label: `${slot}–${endTime(slot, duration)}` }))
+                  : [{ value: "", label: "Tidak ada slot" }]
+              }
+              placeholder={starts.length ? "Pilih jam" : "Tidak ada slot"}
+              className="w-full"
+            />
+          </div>
         </div>
         {kind === "block" ? (
           <label className="block text-xs">Alasan blokir<input required maxLength={160} value={reason} onChange={(event) => setReason(event.target.value)} className={`${field} mt-2`} /></label>
@@ -345,7 +394,7 @@ export function OperationDialog({ kind, preset, close }: { kind: "booking" | "bl
         )}
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         <button type="submit" disabled={busy || !chosen} className={`${button} w-full`}>
-          {busy ? <Spinner className="text-primary-foreground" /> : <>{kind === "block" ? "Blokir slot" : "Simpan booking"} <Check size={16} /></>}
+          {busy ? <Spinner className="text-primary-foreground" /> : <>{kind === "block" ? "Blokir slot" : isWalkInInstant ? "Simpan & Masuk Lapangan" : "Simpan booking"} <Check size={16} /></>}
         </button>
       </form>
     </AdminDialog>
@@ -466,9 +515,33 @@ export function BookingDetailDialog({ booking, close }: { booking: Booking; clos
       {mode === "move" && (
         <form className="mt-6 space-y-4 border-t border-border pt-5" onSubmit={(event) => { event.preventDefault(); run(() => api.admin.rescheduleBooking(booking.id, { court, date, time }), "Jadwal booking dipindahkan.") }}>
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block text-xs">Lapangan<select value={court} onChange={(event) => { setCourt(Number(event.target.value)); setTime("") }} className={`${field} mt-2`}>{courts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-            <label className="block text-xs">Tanggal<input type="date" min={today()} value={date} onChange={(event) => { if (event.target.value) { setDate(event.target.value); setTime("") } }} className={`${field} mt-2`} /></label>
-            <label className="block text-xs">Mulai<select required value={time} onChange={(event) => setTime(event.target.value)} className={`${field} mt-2`}><option value="">{starts.length ? "Pilih jam" : "Tidak ada slot"}</option>{starts.map((slot) => <option key={slot} value={slot}>{slot}–{endTime(slot, booking.duration)}</option>)}</select></label>
+            <div>
+              <span className="block text-xs mb-1 font-medium">Lapangan</span>
+              <LuxurySelect
+                value={court}
+                onChange={(val) => { setCourt(Number(val)); setTime("") }}
+                options={courts.map((item) => ({ value: item.id, label: item.name }))}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <span className="block text-xs mb-1 font-medium">Tanggal</span>
+              <LuxuryDatePicker
+                value={date}
+                onChange={(d) => { if (d) { setDate(d); setTime("") } }}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <span className="block text-xs mb-1 font-medium">Mulai</span>
+              <LuxurySelect
+                value={time}
+                onChange={(val) => setTime(String(val))}
+                options={starts.length ? starts.map((slot) => ({ value: slot, label: `${slot}–${endTime(slot, booking.duration)}` })) : [{ value: "", label: "Tidak ada slot" }]}
+                placeholder="Pilih jam"
+                className="w-full"
+              />
+            </div>
           </div>
           <p className="text-2xs text-muted-foreground">Harga tetap {money(booking.total)}. Pemain menerima email perubahan jadwal.</p>
           {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
@@ -583,10 +656,16 @@ export function Overview({ openDetail, openOperation }: { openDetail: (booking: 
         <p className="text-sm font-medium">Performa klub</p>
         <div className="flex flex-wrap gap-2">
           {isOwner && (
-            <select aria-label="Periode laporan" value={period} onChange={(event) => setPeriod(Number(event.target.value))} className={adminSelect}>
-              <option value={7}>7 hari terakhir</option>
-              <option value={30}>30 hari terakhir</option>
-            </select>
+            <LuxurySelect
+              ariaLabel="Periode laporan"
+              value={period}
+              onChange={(val) => setPeriod(Number(val))}
+              options={[
+                { value: 7, label: "7 hari terakhir" },
+                { value: 30, label: "30 hari terakhir" },
+              ]}
+              className="w-40"
+            />
           )}
           <DatePicker value={date} onChange={setDate} />
         </div>
@@ -679,18 +758,30 @@ export function BookingsSection({ openDetail }: { openDetail: (booking: Booking)
           <Search size={16} className="absolute top-3.5 left-3 text-muted-foreground" aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari pemain, kode, atau lapangan…" className={`${field} min-h-11 pl-9`} />
         </label>
-        <select aria-label="Filter status" value={status} onChange={(event) => setStatus(event.target.value)} className={adminSelect}>
-          <option value="all">Semua status</option>
-          <option value="pending_payment">Menunggu bayar</option>
-          <option value="confirmed">Dikonfirmasi</option>
-          <option value="checked_in">Sedang Bermain</option>
-          <option value="completed">Selesai</option>
-          <option value="cancelled">Dibatalkan</option>
-        </select>
-        <select aria-label="Filter lapangan" value={court} onChange={(event) => setCourt(event.target.value)} className={`${adminSelect} max-w-48`}>
-          <option value="all">Semua lapangan</option>
-          {club.courtOptions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
+        <LuxurySelect
+          ariaLabel="Filter status"
+          value={status}
+          onChange={(val) => setStatus(String(val))}
+          options={[
+            { value: "all", label: "Semua status" },
+            { value: "pending_payment", label: "Menunggu bayar" },
+            { value: "confirmed", label: "Dikonfirmasi" },
+            { value: "checked_in", label: "Sedang Bermain" },
+            { value: "completed", label: "Selesai" },
+            { value: "cancelled", label: "Dibatalkan" },
+          ]}
+          className="w-44"
+        />
+        <LuxurySelect
+          ariaLabel="Filter lapangan"
+          value={court}
+          onChange={(val) => setCourt(String(val))}
+          options={[
+            { value: "all", label: "Semua lapangan" },
+            ...club.courtOptions.map((item) => ({ value: String(item.id), label: item.name })),
+          ]}
+          className="w-48"
+        />
         <button
           type="button"
           className={`${outlineButton} !min-h-11 text-xs`}
@@ -705,9 +796,9 @@ export function BookingsSection({ openDetail }: { openDetail: (booking: Booking)
         </button>
         <div className="flex w-full flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span>Rentang tanggal</span>
-          <input aria-label="Tanggal awal" type="date" value={from} max={to || undefined} onChange={(event) => setFrom(event.target.value)} className={adminSelect} />
+          <LuxuryDatePicker value={from} onChange={(val) => setFrom(val)} />
           <span aria-hidden="true">–</span>
-          <input aria-label="Tanggal akhir" type="date" value={to} min={from || undefined} onChange={(event) => setTo(event.target.value)} className={adminSelect} />
+          <LuxuryDatePicker value={to} onChange={(val) => setTo(val)} />
           {dirty && (
             <button type="button" className={textLink} onClick={() => { setQuery(""); setStatus("all"); setCourt("all"); setFrom(""); setTo("") }}>
               Reset filter
@@ -789,14 +880,32 @@ export function TransactionsSection({ openDetail }: { openDetail: (booking: Book
             <Search size={16} className="absolute top-3.5 left-3 text-muted-foreground" aria-hidden="true" />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari referensi, kode, atau pemain…" className={`${field} min-h-11 pl-9`} />
           </label>
-          <select aria-label="Filter status pembayaran" value={status} onChange={(event) => setStatus(event.target.value)} className={adminSelect}>
-            <option value="all">Semua status</option>
-            {[["success", "Berhasil"], ["pending", "Menunggu"], ["failed", "Gagal"], ["expired", "Kedaluwarsa"], ["refunded", "Dikembalikan"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <select aria-label="Filter metode" value={method} onChange={(event) => setMethod(event.target.value)} className={adminSelect}>
-            <option value="all">Semua metode</option>
-            {["bca_va", "mandiri_va", "gopay", "ovo", "cash"].map((value) => <option key={value} value={value}>{paymentMethodLabel(value as never)}</option>)}
-          </select>
+          <LuxurySelect
+            ariaLabel="Filter status pembayaran"
+            value={status}
+            onChange={(val) => setStatus(String(val))}
+            options={[
+              { value: "all", label: "Semua status" },
+              { value: "success", label: "Berhasil" },
+              { value: "pending", label: "Menunggu" },
+              { value: "failed", label: "Gagal" },
+              { value: "expired", label: "Kedaluwarsa" },
+              { value: "refunded", label: "Dikembalikan" },
+            ]}
+          />
+          <LuxurySelect
+            ariaLabel="Filter metode"
+            value={method}
+            onChange={(val) => setMethod(String(val))}
+            options={[
+              { value: "all", label: "Semua metode" },
+              { value: "bca_va", label: paymentMethodLabel("bca_va" as never) },
+              { value: "mandiri_va", label: paymentMethodLabel("mandiri_va" as never) },
+              { value: "gopay", label: paymentMethodLabel("gopay" as never) },
+              { value: "ovo", label: paymentMethodLabel("ovo" as never) },
+              { value: "cash", label: paymentMethodLabel("cash" as never) },
+            ]}
+          />
           <button
             type="button"
             className={`${outlineButton} !min-h-11 text-xs`}
