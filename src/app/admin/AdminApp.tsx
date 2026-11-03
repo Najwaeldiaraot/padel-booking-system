@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { Link, useLocation } from "react-router"
-import { motion, useReducedMotion } from "motion/react"
 import {
   Activity,
   ArrowRight,
@@ -23,7 +22,6 @@ import {
   X,
 } from "lucide-react"
 import { api, previewAccounts, subscribe } from "../api"
-import { cinematicEase } from "../CinematicMotion"
 import { button, eyebrow, field, outlineButton, textLink, today, useApp, type Booking, type User } from "../club"
 import { NotificationsMenu } from "../BookingParts"
 import { errorMessage, notificationText } from "../i18n"
@@ -142,7 +140,6 @@ export default function AdminApp() {
 
 function AdminShell({ club, me, onSignOut }: { club: string; me: User; onSignOut: () => void }) {
   const location = useLocation()
-  const reduced = useReducedMotion()
   const section = location.pathname.split("/")[2] || ""
   const isOwner = me.role === "owner"
   const visible = navigation.filter((item) => isOwner || !item.owner)
@@ -253,15 +250,10 @@ function AdminFrame({
               <Link
                 to={`/admin${item.id ? `/${item.id}` : ""}`}
                 aria-current={section === item.id ? "page" : undefined}
-                className="group relative my-0.5 flex min-h-11 items-center px-3 text-sm transition"
+                className={`group relative my-0.5 flex min-h-11 items-center px-3 text-sm transition-colors ${
+                  section === item.id ? "bg-accent shadow-xs" : "hover:bg-white/5"
+                }`}
               >
-                {section === item.id && (
-                  <motion.span
-                    layoutId="activeAdminTab"
-                    className="absolute inset-0 bg-accent shadow-sm"
-                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                  />
-                )}
                 <span className={`relative z-10 flex w-full items-center gap-3 transition-colors ${section === item.id ? "font-semibold text-primary" : "text-white/75 group-hover:text-white"}`}>
                   <item.icon size={17} strokeWidth={1.5} aria-hidden="true" />
                   {item.label}

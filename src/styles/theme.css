@@ -101,7 +101,6 @@
     dialog[open] { opacity: 0; transform: translateY(14px) scale(0.985); }
     dialog[open]::backdrop { opacity: 0; }
   }
-  html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

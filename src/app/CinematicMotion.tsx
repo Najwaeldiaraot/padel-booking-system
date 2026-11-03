@@ -12,11 +12,11 @@ export function CinematicReveal({ children, delay = 0 }: CinematicRevealProps) {
   const reducedMotion = useReducedMotion()
   return (
     <motion.div
-      initial={reducedMotion ? false : { opacity: 0, y: 28 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 6 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.08, margin: "0px 0px -20px 0px" }}
+      viewport={{ once: true, amount: 0.05 }}
       transition={{
-        duration: reducedMotion ? 0 : 1.05,
+        duration: reducedMotion ? 0 : 0.35,
         ease: cinematicEase,
         delay: reducedMotion ? 0 : delay,
       }}

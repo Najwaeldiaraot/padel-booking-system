@@ -8,9 +8,8 @@ import {
   useLocation,
 } from "react-router"
 import { ArrowRight, ArrowUpRight, CheckCircle2, Menu, X } from "lucide-react"
-import { motion, MotionConfig, useReducedMotion } from "motion/react"
+import { MotionConfig } from "motion/react"
 import { api, subscribe } from "./api"
-import { cinematicEase } from "./CinematicMotion"
 import ClubHome from "./ClubHome"
 import BookPage from "./BookPage"
 import CheckoutPage from "./CheckoutPage"
@@ -41,7 +40,6 @@ import { ErrorState, Modal, PageLoader, usePageTitle } from "./ui"
 const AdminApp = lazy(() => import("./admin/AdminApp"))
 
 function Root() {
-  const reducedMotion = useReducedMotion()
   const { t, locale } = useLocale()
   const content = useContent()
   const [club, setClub] = useState<ClubConfig>(defaultClub)
@@ -98,9 +96,11 @@ function Root() {
   }, [refresh])
   useEffect(() => {
     setMobileMenu(false)
-    if (location.hash)
-      setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView(), 100)
-    else window.scrollTo(0, 0)
+    if (location.hash) {
+      setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" }), 100)
+    } else {
+      window.scrollTo(0, 0)
+    }
   }, [location.pathname, location.hash])
   useEffect(() => {
     if (!toast) return
@@ -136,7 +136,7 @@ function Root() {
     <AppContext.Provider
       value={{ ready, club: venue, busy, reviews, user, myBookings, notifications, date, setDate, refresh, openAuth, notify: setToast }}
     >
-      <MotionConfig reducedMotion="user" transition={{ duration: 0.75, ease: cinematicEase }}>
+      <MotionConfig reducedMotion="user">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4">
           {t("Ke konten utama", "Skip to content")}
         </a>
@@ -221,17 +221,8 @@ function Root() {
             />
           ) : !ready ? (
             <PageLoader label={t("Menyiapkan lapangan…", "Getting the courts ready…")} />
-          ) : isAdmin ? (
-            <Outlet />
           ) : (
-            <motion.div
-              key={location.pathname}
-              initial={isHome || reducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reducedMotion ? 0 : 0.65, ease: cinematicEase }}
-            >
-              <Outlet />
-            </motion.div>
+            <Outlet />
           )}
         </main>
         {!isAdmin && ready && (
