@@ -4,9 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { Link, useLocation } from "react-router"
 import { ArrowRight, ArrowUpRight, CheckCircle2, Menu, X } from "lucide-react"
-import { motion, MotionConfig, useReducedMotion } from "motion/react"
+import { MotionConfig } from "motion/react"
 import { api, subscribe } from "@/app/api"
-import { cinematicEase } from "@/app/CinematicMotion"
 import AuthDialog from "@/app/AuthDialog"
 import { BookingPolicyNotice } from "@/app/BookingSupport"
 import { NotificationsMenu } from "@/app/BookingParts"
@@ -29,7 +28,6 @@ import { LanguageSwitch, LocaleProvider, notificationText, useContent, useLocale
 import { ErrorState, Modal, PageLoader } from "@/app/ui"
 
 function ShellContent({ children }: { children: React.ReactNode }) {
-  const reducedMotion = useReducedMotion()
   const { t, locale } = useLocale()
   const content = useContent()
   const [club, setClub] = useState<ClubConfig>(defaultClub)
@@ -90,11 +88,11 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobileMenu(false)
     if (typeof window !== "undefined" && window.location.hash) {
-      setTimeout(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView(), 100)
-    } else if (typeof window !== "undefined") {
+      setTimeout(() => document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ behavior: "smooth" }), 100)
+    } else if (typeof window !== "undefined" && !isAdmin) {
       window.scrollTo(0, 0)
     }
-  }, [pathname])
+  }, [pathname, isAdmin])
 
   useEffect(() => {
     if (!toast) return
@@ -134,7 +132,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     <AppContext.Provider
       value={{ ready, club: venue, busy, reviews, user, myBookings, notifications, date, setDate, refresh, openAuth, notify: setToast }}
     >
-      <MotionConfig reducedMotion="user" transition={{ duration: 0.75, ease: cinematicEase }}>
+      <MotionConfig reducedMotion="user">
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-card focus:p-4">
           {t("Ke konten utama", "Skip to content")}
         </a>
@@ -219,14 +217,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           ) : !ready ? (
             <PageLoader label={t("Menyiapkan lapangan…", "Getting the courts ready…")} />
           ) : (
-            <motion.div
-              key={pathname}
-              initial={isHome || reducedMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reducedMotion ? 0 : 0.65, ease: cinematicEase }}
-            >
-              {children}
-            </motion.div>
+            children
           )}
         </main>
         {!isAdmin && ready && (
