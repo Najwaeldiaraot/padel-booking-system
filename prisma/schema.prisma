@@ -1,0 +1,164 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  PLAYER
+  STAFF
+  OWNER
+}
+
+enum BookingStatus {
+  HOLD
+  PENDING_PAYMENT
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum CourtType {
+  INDOOR
+  PANORAMIC
+  OUTDOOR
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String?        @unique
+  phone         String?        @unique
+  passwordHash  String?
+  role          Role           @default(PLAYER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  bookings      Booking[]
+  reviews       Review[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+model Court {
+  id           Int          @id @default(autoincrement())
+  name         String
+  type         CourtType    @default(PANORAMIC)
+  pricePerHour Int
+  description  String?
+  photoUrl     String?
+  isActive     Boolean      @default(true)
+  bookings     Booking[]
+  blocks       CourtBlock[]
+
+  @@map("courts")
+}
+
+model CourtBlock {
+  id        String   @id @default(cuid())
+  courtId   Int
+  court     Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  date      String   // format: YYYY-MM-DD
+  startTime String   // format: HH:mm
+  endTime   String   // format: HH:mm
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([courtId, date])
+  @@map("court_blocks")
+}
+
+model Booking {
+  id              String           @id @default(cuid())
+  code            String           @unique // e.g. RPC-20261103-8821
+  userId          String?
+  user            User?            @relation(fields: [userId], references: [id])
+  customerName    String
+  customerContact String
+  courtId         Int
+  court           Court            @relation(fields: [courtId], references: [id])
+  date            String           // format: YYYY-MM-DD
+  startTime       String           // format: HH:mm
+  durationHours   Int              @default(1)
+  totalPrice      Int
+  status          BookingStatus    @default(HOLD)
+  holdExpiresAt   DateTime?
+  checkedInAt     DateTime?
+  source          String           @default("online") // online | walk-in
+  rescheduleCount Int              @default(0)
+  refundAmount    Int?
+  cancelReason    String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  payment         Payment?
+  review          Review?
+  history         BookingHistory[]
+
+  @@index([courtId, date, status])
+  @@map("bookings")
+}
+
+model BookingHistory {
+  id         String         @id @default(cuid())
+  bookingId  String
+  booking    Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  action     String
+  actorRole  String
+  note       String?
+  createdAt  DateTime       @default(now())
+
+  @@index([bookingId])
+  @@map("booking_histories")
+}
+
+model Payment {
+  id            String    @id @default(cuid())
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amount        Int
+  gateway       String    @default("midtrans")
+  transactionId String?
+  paymentType   String?   // qris, bca_va, mandiri_va, gopay
+  status        String    @default("pending") // pending, settlement, expire, cancel
+  payload       Json?
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("payments")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  rating     Int      // 1-5
+  comment    String?
+  adminReply String?
+  isHidden   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("reviews")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
