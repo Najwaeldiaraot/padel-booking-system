@@ -15,13 +15,14 @@ function getServerKey(): string {
 
 test.describe("06. Check-in, Invoice & Live Operations Lifecycle", () => {
   test("performs customer check-in and finishes session via API", async ({ request }) => {
-    // 1. Create a booking directly via API
-    const testDate = `2026-11-${Math.floor(10 + Math.random() * 18)}`;
+    // 1. Create a booking directly via API on a clean future slot
+    const testDate = `2026-12-${String(Math.floor(10 + Math.random() * 18)).padStart(2, "0")}`;
+    const randomHour = String(Math.floor(8 + Math.random() * 12)).padStart(2, "0");
     const createRes = await request.post("/api/bookings", {
       data: {
         courtId: 1,
         date: testDate,
-        startTime: "14:00",
+        startTime: `${randomHour}:00`,
         durationHours: 1,
         customerName: "Budi Santoso",
         customerContact: "08123456789",

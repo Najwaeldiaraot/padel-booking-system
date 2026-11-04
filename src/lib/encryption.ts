@@ -30,6 +30,16 @@ export function encryptPII(text: string): string {
   return `${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted}`;
 }
 
+export function isEncrypted(val: string | null | undefined): boolean {
+  if (!val || typeof val !== "string") return false;
+  const parts = val.split(":");
+  return (
+    parts.length === 3 &&
+    parts[0].length === 24 && // 12 bytes = 24 hex chars
+    parts[1].length === 32 // 16 bytes = 32 hex chars
+  );
+}
+
 /**
  * Decrypt sensitive PII ciphertext encrypted with encryptPII (AES-256-GCM).
  * In default mode, falls back gracefully to original text if ciphertext is legacy plain text.

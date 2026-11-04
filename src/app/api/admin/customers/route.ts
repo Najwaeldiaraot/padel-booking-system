@@ -31,6 +31,7 @@ export async function GET(request: Request) {
       whereClause = {
         OR: [
           { name: { contains: term, mode: "insensitive" } },
+          { nameBlindIndex: blindIndex },
           { phoneBlindIndex: blindIndex },
           { emailBlindIndex: blindIndex },
         ],

@@ -98,4 +98,35 @@ test.describe("04. Midtrans Payment & Webhook Lifecycle", () => {
     expect(chargeData.qrString).toContain("5303360");
     expect(chargeData.qrString).toContain("5802ID");
   });
+
+  test("checks payment status endpoint /api/payment/status", async ({ request }) => {
+    // 1. Check with non-existent order
+    const notFoundRes = await request.get("/api/payment/status?orderId=NON_EXISTENT_ORDER_9999");
+    expect(notFoundRes.status()).toBe(404);
+    const notFoundData = await notFoundRes.json();
+    expect(notFoundData.status).toBe("not_found");
+
+    // 2. Create a real booking to check pending status
+    const testDate = `2026-11-${Math.floor(10 + Math.random() * 18)}`;
+    const createRes = await request.post("/api/bookings", {
+      data: {
+        courtId: 1,
+        date: testDate,
+        startTime: "16:00",
+        durationHours: 1,
+        customerName: "Status Tester",
+        customerContact: "081234567890",
+        totalPrice: 250000,
+      },
+    });
+    expect(createRes.ok()).toBeTruthy();
+    const booking = await createRes.json();
+
+    // Check status for this booking
+    const statusRes = await request.get(`/api/payment/status?orderId=${booking.id}`);
+    expect(statusRes.ok()).toBeTruthy();
+    const statusData = await statusRes.json();
+    expect(statusData.orderId).toBe(booking.id);
+    expect(["hold", "pending", "pending_payment"]).toContain(statusData.status);
+  });
 });
