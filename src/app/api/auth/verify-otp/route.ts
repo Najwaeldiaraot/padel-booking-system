@@ -49,6 +49,13 @@ export async function POST(request: Request) {
 
     if (challenge.code !== code.trim()) {
       challenge.attempts += 1;
+      if (challenge.attempts >= 5) {
+        await redis.del(redisKey);
+        return NextResponse.json(
+          { error: "Terlalu banyak percobaan salah. Silakan daftar ulang." },
+          { status: 400 }
+        );
+      }
       await redis.set(redisKey, challenge, { ex: 300 });
       return NextResponse.json(
         {

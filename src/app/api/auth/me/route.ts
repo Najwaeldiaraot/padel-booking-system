@@ -19,12 +19,15 @@ export async function GET(request: Request) {
       request.headers.get("authorization")?.replace("Bearer ", "");
 
     if (!token) {
-      return NextResponse.json({ success: true, user: null });
+      return NextResponse.json({ success: true, user: null, authenticated: false });
     }
 
     const session = verifySessionToken(token);
     if (!session || !session.id) {
-      return NextResponse.json({ success: true, user: null });
+      return NextResponse.json(
+        { error: "Sesi tidak valid atau telah kedaluwarsa.", user: null, authenticated: false },
+        { status: 401 }
+      );
     }
 
     const user = await prisma.user.findUnique({

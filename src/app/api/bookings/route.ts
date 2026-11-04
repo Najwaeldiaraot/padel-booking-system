@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { broadcastSlotEvent } from "@/server/services/slot-service";
+import { broadcastSlotEvent, acquireSlotLock } from "@/server/services/slot-service";
 import { encryptPII, decryptPII, generateBlindIndex } from "@/lib/encryption";
 
 function generateBookingCode(): string {
@@ -77,7 +77,24 @@ export async function POST(request: Request) {
     const bookingEndMinutes = bookingStartMinutes + Math.round(durationHours * 60);
     const bookingEndTime = `${String(Math.floor(bookingEndMinutes / 60)).padStart(2, "0")}:${String(bookingEndMinutes % 60).padStart(2, "0")}`;
 
-    // 1. Double check slot conflict in DB (overlapping active bookings including CHECKED_IN)
+    // 1. Atomic Distributed Lock via Redis to prevent simultaneous double booking
+    const lockIdentifier = userId || (customerContact ? customerContact.trim() : generateBookingCode());
+    const lockResult = await acquireSlotLock(
+      courtId,
+      date,
+      startTime,
+      lockIdentifier,
+      600
+    );
+
+    if (!lockResult.success) {
+      return NextResponse.json(
+        { error: lockResult.message || "Slot waktu ini sedang dipilih/dikunci oleh pengguna lain." },
+        { status: 409 }
+      );
+    }
+
+    // 2. Double check slot conflict in DB (overlapping active bookings including CHECKED_IN)
     const potentialBookings = await prisma.booking.findMany({
       where: {
         courtId: Number(courtId),

@@ -101,6 +101,36 @@ export async function PATCH(
     }
 
     if (action === "checkin") {
+      // 1. Status Guard: Must be CONFIRMED
+      if (booking.status !== "CONFIRMED") {
+        return NextResponse.json(
+          { error: `Booking tidak dapat di-checkin karena berstatus ${booking.status}` },
+          { status: 400 }
+        );
+      }
+
+      // 2. Schedule Expiry Guard: Check if the playing session has already ended
+      const [sh, sm] = (booking.startTime || "00:00").split(":").map(Number);
+      const endMinutes = sh * 60 + sm + Math.round((booking.durationHours || 1) * 60);
+      const endHours = Math.floor(endMinutes / 60);
+      const endMins = endMinutes % 60;
+      const endTimeStr = `${String(endHours).padStart(2, "0")}:${String(endMins).padStart(2, "0")}`;
+
+      const bookingEndIso = `${booking.date}T${endTimeStr}:00+07:00`;
+      const bookingEndTime = new Date(bookingEndIso).getTime();
+      const nowTime = Date.now();
+
+      if (!isNaN(bookingEndTime) && nowTime > bookingEndTime && !body.bypassExpired) {
+        return NextResponse.json(
+          {
+            error: "Jadwal bermain untuk booking ini telah berakhir.",
+            code: "SCHEDULE_EXPIRED",
+            bookingEnd: bookingEndIso,
+          },
+          { status: 400 }
+        );
+      }
+
       const updated = await prisma.booking.update({
         where: { id: booking.id },
         data: {
@@ -119,6 +149,13 @@ export async function PATCH(
     }
 
     if (action === "complete") {
+      if (booking.status !== "CHECKED_IN" && !body.bypassStatus) {
+        return NextResponse.json(
+          { error: `Hanya booking berstatus CHECKED_IN yang dapat diselesaikan (Status saat ini: ${booking.status})` },
+          { status: 400 }
+        );
+      }
+
       const updated = await prisma.booking.update({
         where: { id: booking.id },
         data: {
