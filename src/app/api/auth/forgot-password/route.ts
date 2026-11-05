@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { redis } from "@/lib/redis";
 import { generateBlindIndex, maskPII } from "@/lib/encryption";
+import { sendOtpEmail } from "@/server/services/email-service";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     // Generate 6-digit OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const challengeId = `rst-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const ttlSeconds = 300;
+    const ttlSeconds = 600; // 10 minutes
 
     await redis.set(
       `otp_reset:${challengeId}`,
@@ -67,6 +68,16 @@ export async function POST(request: Request) {
       },
       { ex: ttlSeconds }
     );
+
+    // Send real OTP email via Resend
+    const targetRecipient = parsed.type === "email" ? parsed.value : user.email;
+    if (targetRecipient) {
+      try {
+        await sendOtpEmail(targetRecipient, code, "forgot_password");
+      } catch (mailErr) {
+        console.warn("[API Auth Forgot Password] Failed to dispatch OTP email:", mailErr);
+      }
+    }
 
     const destination = maskPII(parsed.value, parsed.type);
 

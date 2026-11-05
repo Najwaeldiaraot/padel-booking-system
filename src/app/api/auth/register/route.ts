@@ -7,6 +7,7 @@ import {
   hashPassword,
   maskPII,
 } from "@/lib/encryption";
+import { sendOtpEmail } from "@/server/services/email-service";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     // Generate 6-digit OTP code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const challengeId = `otp-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const ttlSeconds = 300; // 5 minutes
+    const ttlSeconds = 600; // 10 minutes
 
     const challengeData = {
       name: name.trim(),
@@ -87,6 +88,15 @@ export async function POST(request: Request) {
     };
 
     await redis.set(`otp_reg:${challengeId}`, challengeData, { ex: ttlSeconds });
+
+    // Send real OTP email via Resend if registered with email
+    if (parsed.type === "email") {
+      try {
+        await sendOtpEmail(parsed.value, code, "register");
+      } catch (mailErr) {
+        console.warn("[API Auth Register] Failed to dispatch OTP email:", mailErr);
+      }
+    }
 
     const destination = maskPII(parsed.value, parsed.type);
 

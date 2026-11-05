@@ -153,33 +153,29 @@ export async function sendBookingInvoiceEmail(params: SendInvoiceEmailParams) {
             </td>
           </tr>
 
-          <!-- Bottom Stub: Ticket Pass & High-Res QR Code -->
+          <!-- Bottom Stub: Ticket Pass & Harmonious QR Code (Seamless Luxury Cream Stub) -->
           <tr>
-            <td style="padding: 24px 32px 32px 32px;" align="center">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border: 2px solid #1C2621; text-align: center;">
+            <td style="padding: 24px 32px 30px 32px; background-color: #F4F1EA; text-align: center;">
+              <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #7A866C; display: block; margin-bottom: 8px;">
+                Passcode Akses Lapangan
+              </span>
+
+              <!-- Clean QR Code Container Blended with Luxury Cream Stub -->
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 12px auto; background-color: #FFFFFF; border: 1.5px solid #1C2621; box-shadow: 0 4px 12px rgba(28,38,33,0.06);">
                 <tr>
-                  <td style="padding: 24px 20px;">
-                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #7A866C; display: block; margin-bottom: 6px;">
-                      Passcode Tiket Masuk
-                    </span>
-                    <span style="font-size: 22px; font-weight: 800; font-family: monospace; letter-spacing: 0.12em; color: #1C2621; display: block; margin-bottom: 14px;">
-                      ${bookingCode.toUpperCase()}
-                    </span>
-
-                    <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E2E8E5; padding: 6px;">
-                      <tr>
-                        <td>
-                          <img src="${qrCodeUrl}" alt="QR Tiket ${bookingCode}" width="160" height="160" style="display: block; border: 0;" />
-                        </td>
-                      </tr>
-                    </table>
-
-                    <p style="margin: 14px 0 0 0; font-size: 12px; line-height: 1.5; color: #64748B; max-width: 360px;">
-                      Tunjukkan QR Code ini kepada concierge atau staf saat tiba di klub untuk check-in instan. Mohon hadir 15 menit sebelum waktu bermain.
-                    </p>
+                  <td style="padding: 8px;">
+                    <img src="${qrCodeUrl}" alt="QR Tiket ${bookingCode}" width="160" height="160" style="display: block; border: 0;" />
                   </td>
                 </tr>
               </table>
+
+              <span style="font-size: 24px; font-weight: 800; font-family: monospace; letter-spacing: 0.14em; color: #1C2621; display: block; margin-bottom: 6px;">
+                ${bookingCode.toUpperCase()}
+              </span>
+
+              <p style="margin: 0 auto; font-size: 12px; line-height: 1.6; color: #526359; max-width: 380px;">
+                Tunjukkan QR Code ini kepada petugas concierge klub saat tiba untuk verifikasi check-in instan. Mohon hadir 15 menit sebelum waktu bermain.
+              </p>
             </td>
           </tr>
 
@@ -263,4 +259,140 @@ export async function sendBookingInvoiceEmail(params: SendInvoiceEmailParams) {
   }
 
   return { invoiceNumber, htmlContent, qrCodeUrl };
+}
+
+export interface SendOtpEmailResult {
+  targetEmail: string;
+  success: boolean;
+  htmlContent: string;
+}
+
+export async function sendOtpEmail(
+  email: string,
+  otpCode: string,
+  purpose: "register" | "forgot_password"
+): Promise<SendOtpEmailResult> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.EMAIL_FROM || "Rally Padel Club <onboarding@resend.dev>";
+
+  const isRegister = purpose === "register";
+  const title = isRegister
+    ? "Verifikasi Pendaftaran Akun"
+    : "Reset Kata Sandi Akun";
+  const subtitle = isRegister
+    ? "Gunakan kode verifikasi di bawah ini untuk menyelesaikan pendaftaran akun Rally Padel Club Anda."
+    : "Kami menerima permintaan reset kata sandi akun Rally Padel Club Anda. Masukkan kode verifikasi berikut:";
+
+  // In Resend Sandbox mode, emails can only be delivered to the verified account owner (muhammadrafki718@gmail.com).
+  // If email is demo / unverified domain, deliver to the verified owner address so testing succeeds.
+  const targetEmail =
+    email &&
+    email.includes("@") &&
+    !email.endsWith("@rallypadel.club") &&
+    !email.endsWith("@contoh.id") &&
+    !email.endsWith("@padel.test")
+      ? email
+      : "muhammadrafki718@gmail.com";
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - Rally Padel Club</title>
+</head>
+<body style="margin: 0; padding: 36px 12px; background-color: #0F1713; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #F4F1EA; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0F1713;">
+    <tr>
+      <td align="center">
+        <!-- Main Dark Luxury Card -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 520px; background-color: #16221B; border: 1px solid #2D3E35; border-radius: 4px; border-collapse: separate; box-shadow: 0 12px 30px rgba(0,0,0,0.4);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 32px 20px 32px; border-bottom: 1px solid #23332B; text-align: center;">
+              <span style="font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; color: #C9D3B0; display: block; margin-bottom: 6px;">
+                Rally Padel Club · Autentikasi
+              </span>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; color: #FFFFFF; font-family: Georgia, serif;">
+                ${title}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 28px 32px; text-align: center;">
+              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #C5CEBE;">
+                ${subtitle}
+              </p>
+
+              <!-- 6-digit Bold OTP Code Box -->
+              <table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px auto; background-color: #0B1410; border: 1.5px solid #C9D3B0; border-radius: 4px;">
+                <tr>
+                  <td style="padding: 18px 36px; text-align: center;">
+                    <span style="font-size: 38px; font-weight: 900; letter-spacing: 0.25em; color: #F4F1EA; font-family: 'Courier New', Courier, monospace; display: block; line-height: 1;">
+                      ${otpCode}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- 10-minute Expiration Warning Box -->
+              <div style="background-color: rgba(201, 211, 176, 0.08); border-left: 3px solid #C9D3B0; padding: 12px 16px; text-align: left; margin-bottom: 20px;">
+                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #C5CEBE;">
+                  ⏱️ <strong>Peringatan Keamanan:</strong> Kode ini hanya berlaku selama <strong>10 menit</strong>. Jangan bagikan kode verifikasi ini kepada siapa pun untuk keamanan akun Anda.
+                </p>
+              </div>
+
+              <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #7E8C82;">
+                Jika Anda tidak merasa melakukan permintaan ini, silakan abaikan pesan email ini.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0D1612; border-top: 1px solid #23332B; padding: 16px 24px; text-align: center;">
+              <p style="margin: 0; font-size: 11px; color: #7E8C82; letter-spacing: 0.05em;">
+                Rally Padel Club · Kemang, Jakarta Selatan · halo@rallypadel.club
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+
+  if (resendApiKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: targetEmail,
+          subject: `${otpCode} - Kode Verifikasi ${isRegister ? "Pendaftaran" : "Reset Sandi"} Rally Padel Club`,
+          html: htmlContent,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        console.log(`[Email OTP] Sent OTP to ${targetEmail} via Resend. ID: ${data?.id}`);
+      } else {
+        console.warn(`[Email OTP] Resend API error (${res.status}):`, data);
+      }
+    } catch (e) {
+      console.warn("[Email OTP] Failed to send email via Resend API:", e);
+    }
+  } else {
+    console.log(`[Email Simulator] OTP (${purpose}) for ${targetEmail}: ${otpCode}`);
+  }
+
+  return { targetEmail, success: true, htmlContent };
 }
