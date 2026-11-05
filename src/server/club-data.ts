@@ -35,7 +35,7 @@ export const defaultClub = {
     cancellationHours: 24,
     refundPercent: 100,
     allowReschedule: true,
-    rescheduleHours: 12,
+    rescheduleHours: 2,
     maxReschedules: 1,
     holdMinutes: 10,
     arrivalMinutes: 15,
