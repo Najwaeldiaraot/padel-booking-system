@@ -245,3 +245,149 @@ export function verifyMidtransSignature(
   );
   return expectedSignature.toLowerCase() === incomingSignature.toLowerCase();
 }
+
+export interface MidtransSimulationResult {
+  success: boolean;
+  status?: string;
+  settlementTime?: string;
+  grossAmount?: string;
+  orderId?: string;
+  error?: string;
+}
+
+export function extractSimulatorFormField(
+  html: string,
+  fieldName: string
+): string | null {
+  // Regex 1: name before value (supports multi-line JSON values like exploreData)
+  const regex1 = new RegExp(
+    `<input[^>]*name=["']${fieldName}["'][^>]*value=["']([\\s\\S]*?)["']`,
+    "i"
+  );
+  const match1 = html.match(regex1);
+  if (match1 && match1[1] !== undefined) return match1[1].replace(/&quot;/g, '"');
+
+  // Regex 2: value before name
+  const regex2 = new RegExp(
+    `<input[^>]*value=["']([\\s\\S]*?)["'][^>]*name=["']${fieldName}["']`,
+    "i"
+  );
+  const match2 = html.match(regex2);
+  if (match2 && match2[1] !== undefined) return match2[1].replace(/&quot;/g, '"');
+
+  return null;
+}
+
+export async function simulateMidtransQrisPayment(
+  orderId: string,
+  issuer: string = "gopay"
+): Promise<MidtransSimulationResult> {
+  const serverKey = midtransConfig.serverKey || process.env.MIDTRANS_SERVER_KEY || "";
+  if (!serverKey) {
+    throw new Error("MIDTRANS_SERVER_KEY is not configured");
+  }
+
+  const authHeader = `Basic ${Buffer.from(`${serverKey}:`).toString("base64")}`;
+
+  // 1. Ambil data transaksi dari Midtrans sandbox
+  const statusRes = await fetch(
+    `https://api.sandbox.midtrans.com/v2/${orderId}/status`,
+    {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!statusRes.ok) {
+    const errData = await statusRes.json().catch(() => ({}));
+    throw new Error(
+      errData.status_message || `Gagal mengambil status transaksi Midtrans: ${statusRes.statusText}`
+    );
+  }
+
+  const statusData = await statusRes.json();
+  if (!statusData.transaction_id) {
+    throw new Error("Midtrans transaction_id tidak ditemukan pada respon status");
+  }
+
+  // 2. Ambil qrUrl
+  const qrUrl = `https://api.sandbox.midtrans.com/v2/qris/${statusData.transaction_id}/qr-code`;
+
+  // 3. Lakukan scan ke Midtrans Simulator v2
+  const scanRes = await fetch(
+    "https://simulator.sandbox.midtrans.com/v2/qris/payment",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "text/html,application/xhtml+xml,application/xml",
+      },
+      body: new URLSearchParams({ qrCodeUrl: qrUrl }).toString(),
+    }
+  );
+
+  if (!scanRes.ok) {
+    throw new Error(`Gagal melakukan scan QR ke simulator Midtrans: ${scanRes.statusText}`);
+  }
+
+  const scanHtml = await scanRes.text();
+
+  // 4. Ekstrak referenceId dan exploreData dari form response
+  const referenceId = extractSimulatorFormField(scanHtml, "referenceId");
+  const exploreData = extractSimulatorFormField(scanHtml, "exploreData");
+
+  if (!referenceId || !exploreData) {
+    throw new Error("Gagal mengekstrak referenceId atau exploreData dari form simulator");
+  }
+
+  // 5. Kirimkan POST ke https://simulator.sandbox.midtrans.com/v2/qris/payment/gopay dengan issuer & Referer
+  const payRes = await fetch(
+    "https://simulator.sandbox.midtrans.com/v2/qris/payment/gopay",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Referer: "https://simulator.sandbox.midtrans.com/v2/qris/payment",
+      },
+      body: new URLSearchParams({
+        referenceId,
+        exploreData,
+        issuer,
+      }).toString(),
+    }
+  );
+
+  if (!payRes.ok) {
+    throw new Error(`Gagal mengirimkan pembayaran simulator: ${payRes.statusText}`);
+  }
+
+  // 6. Periksa kembali status transaksi ke Midtrans
+  const verifyRes = await fetch(
+    `https://api.sandbox.midtrans.com/v2/${orderId}/status`,
+    {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!verifyRes.ok) {
+    const errData = await verifyRes.json().catch(() => ({}));
+    throw new Error(
+      errData.status_message || `Gagal memverifikasi status pembayaran: ${verifyRes.statusText}`
+    );
+  }
+
+  const verifyData = await verifyRes.json();
+
+  return {
+    success: true,
+    status: verifyData.transaction_status,
+    settlementTime: verifyData.settlement_time,
+    grossAmount: verifyData.gross_amount,
+    orderId,
+  };
+}
