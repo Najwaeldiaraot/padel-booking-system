@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef } from "react";
-import { CheckCircle2, Printer, X, ShieldCheck } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { CheckCircle2, Printer, X, ShieldCheck, Star } from "lucide-react";
 import {
   button,
   dateLabel,
@@ -11,6 +11,16 @@ import {
   type Booking,
   type Venue,
 } from "@/lib/club";
+import { api } from "@/lib/api";
+
+export const QUICK_FEEDBACK_CHIPS = [
+  "Lapangan Mulus & Bersih",
+  "Pencahayaan Terang",
+  "Staf Ramah & Sigap",
+  "Area Santai Nyaman",
+  "Pertandingan Sangat Seru",
+  "Net & Garis Standar",
+];
 
 interface InvoiceModalProps {
   booking: Booking | null;
@@ -21,6 +31,10 @@ interface InvoiceModalProps {
 
 export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   if (!isOpen || !booking) return null;
 
@@ -31,7 +45,113 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
   const end = endTime(booking.time, booking.duration);
 
   const handlePrint = () => {
-    window.print();
+    const el = document.getElementById("printable-pass-invoice");
+    if (!el) {
+      window.print();
+      return;
+    }
+
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    // Ambil stylesheet aktif untuk mempertahankan styling Tailwind & typography
+    const styles = Array.from(document.querySelectorAll("link[rel='stylesheet'], style"))
+      .map((s) => s.outerHTML)
+      .join("\n");
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>${booking.id} - Official Pass & E-Invoice</title>
+          ${styles}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            html, body {
+              background: #ffffff !important;
+              color: #1C2621 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }
+            .ticket-print-wrapper {
+              max-width: 620px;
+              margin: 0 auto;
+              background: #F4F1EA !important;
+              border: 2px solid #1C2621 !important;
+              padding: 24px !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="ticket-print-wrapper">
+            ${el.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 1500);
+    }, 250);
+  };
+
+  const handleToggleChip = (chip: string) => {
+    setComment((prev) => {
+      const trimmed = prev.trim();
+      if (!trimmed) return chip;
+      if (trimmed.includes(chip)) {
+        return trimmed
+          .replace(chip, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+      }
+      return `${trimmed} ${chip}`;
+    });
+  };
+
+  const handleSubmitReview = async () => {
+    if (!stars || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await api.bookings.rate(booking.id, { rating: stars, review: comment });
+      setSubmitted(true);
+    } catch (err) {
+      console.warn("Failed to submit review:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -39,11 +159,18 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
       role="dialog"
       aria-modal="true"
       aria-labelledby="ticket-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B241C]/80 p-3 sm:p-4 backdrop-blur-md animate-in fade-in duration-200 print:static print:inset-auto print:bg-white print:p-0 print:block"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
     >
-      <div className="relative max-h-[94vh] w-full max-w-lg overflow-y-auto bg-[#F4F1EA] shadow-2xl border border-[#1C2621]/30 print:max-h-none print:w-full print:max-w-none print:overflow-visible print:border-none print:shadow-none print:bg-white">
+      {/* Modal Backdrop with no-print */}
+      <div
+        className="fixed inset-0 bg-[#0B241C]/80 backdrop-blur-md no-print"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div className="relative max-h-[94vh] w-full max-w-lg overflow-y-auto bg-[#F4F1EA] shadow-2xl border border-[#1C2621]/30">
         {/* Top Control Bar (Hidden on print) */}
-        <div className="flex items-center justify-between border-b border-[#1C2621]/15 bg-[#1C2621] px-5 py-3 text-white print:hidden">
+        <div className="no-print flex items-center justify-between border-b border-[#1C2621]/15 bg-[#1C2621] px-5 py-3 text-white">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#F4F1EA]">
             <CheckCircle2 size={16} className="text-[#C9D3B0]" />
             <span>Official Pass & E-Invoice</span>
@@ -51,7 +178,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
           <button
             type="button"
             onClick={onClose}
-            className="flex size-7 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="no-print flex size-7 items-center justify-center text-white/70 transition hover:bg-white/10 hover:text-white"
             aria-label="Tutup tiket invoice"
           >
             <X size={16} />
@@ -59,7 +186,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
         </div>
 
         {/* Printable Ticket Stub Card */}
-        <div ref={printRef} className="relative p-6 sm:p-8 print:p-4 text-[#1C2621]">
+        <div id="printable-pass-invoice" ref={printRef} className="relative p-6 sm:p-8 text-[#1C2621]">
           {/* Ticket Header & Brand */}
           <div className="border-b-2 border-[#1C2621] pb-5">
             <div className="flex items-start justify-between gap-4">
@@ -146,7 +273,7 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
             </div>
           </div>
 
-          {/* Clean Perforation Dashed Line (No weird side square boxes) */}
+          {/* Clean Perforation Dashed Line */}
           <div className="my-6 border-t-2 border-dashed border-[#1C2621]/25" />
 
           {/* Dedicated Clean QR Code Section */}
@@ -202,19 +329,98 @@ export function InvoiceModal({ booking, venue, isOpen, onClose }: InvoiceModalPr
           </div>
         </div>
 
+        {/* Rating & Quick Feedback Chips Form (Hidden on print) */}
+        <div className="no-print border-t border-[#1C2621]/15 bg-white/70 p-5 text-[#1C2621]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#1C2621]">
+              Beri Ulasan Lapangan
+            </span>
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStars(val)}
+                  className="p-0.5 transition hover:scale-110"
+                  aria-label={`${val} bintang`}
+                >
+                  <Star
+                    size={18}
+                    className={
+                      val <= stars
+                        ? "fill-[#D97706] text-[#D97706]"
+                        : "text-[#1C2621]/25"
+                    }
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="my-2.5">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-[#1C2621]/60 block mb-1.5">
+              Pilihan Komentar Cepat:
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_FEEDBACK_CHIPS.map((chip) => {
+                const isSelected = comment.includes(chip);
+                return (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => handleToggleChip(chip)}
+                    className={`rounded-full px-2.5 py-1 text-2xs transition-all border ${
+                      isSelected
+                        ? "bg-[#1C2621] text-[#F4F1EA] border-[#1C2621] font-medium"
+                        : "bg-white text-[#1C2621]/80 border-[#1C2621]/20 hover:bg-[#1C2621]/5 hover:border-[#1C2621]/40"
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Bagikan pengalaman bermainmu di sini..."
+            rows={2}
+            className="w-full rounded-none border border-[#1C2621]/20 bg-white p-2 text-xs text-[#1C2621] placeholder:text-[#1C2621]/40 focus:border-[#1C2621] focus:outline-none"
+          />
+
+          {submitted ? (
+            <p className="mt-2 text-xs font-semibold text-[#0B4A2D] flex items-center gap-1.5">
+              <CheckCircle2 size={14} /> Terima kasih! Penilaianmu tersimpan.
+            </p>
+          ) : (
+            <div className="mt-2.5 flex justify-end">
+              <button
+                type="button"
+                disabled={!stars || isSubmitting}
+                onClick={handleSubmitReview}
+                className="text-2xs font-semibold uppercase tracking-wider px-3.5 py-1.5 bg-[#1C2621] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#1C2621]/90 shadow-xs"
+              >
+                {isSubmitting ? "Menyimpan..." : "Kirim Ulasan"}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Action Buttons (Hidden when printing) */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[#1C2621]/15 bg-[#1C2621]/5 px-6 py-4 print:hidden">
+        <div className="no-print flex flex-wrap items-center justify-end gap-3 border-t border-[#1C2621]/15 bg-[#1C2621]/5 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className={`${outlineButton} !min-h-10 text-xs border-[#1C2621]/30 text-[#1C2621] hover:bg-black/5`}
+            className={`no-print ${outlineButton} !min-h-10 text-xs border-[#1C2621]/30 text-[#1C2621] hover:bg-black/5`}
           >
             Tutup
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className={`${button} !min-h-10 text-xs bg-[#1C2621] text-white hover:bg-[#1C2621]/90 shadow-sm`}
+            className={`no-print ${button} !min-h-10 text-xs bg-[#1C2621] text-white hover:bg-[#1C2621]/90 shadow-sm`}
           >
             <Printer size={15} /> Cetak / Unduh PDF
           </button>
