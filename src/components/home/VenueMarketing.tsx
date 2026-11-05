@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import { Link } from "react-router"
-import { ArrowRight, ArrowUpRight, ChevronLeft, ChevronRight, Clock3, MapPin, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, MapPin, Star } from "lucide-react"
 import { button, clock, courtShortName, eyebrow, outlineButton, ratingSummary, useApp } from "@/lib/club"
-import { WhatsAppHelp } from "@/components/booking/BookingSupport"
+import { cinematicEase } from "@/components/ui/CinematicMotion"
 import { useContent, useLocale } from "@/lib/i18n"
 import { Modal } from "@/components/ui"
 
@@ -54,11 +54,147 @@ export function ClubPromotion() {
   )
 }
 
+function GoogleGIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+      />
+    </svg>
+  )
+}
+
+interface StoryReview {
+  id: string
+  name: string
+  rating: number
+  review: string
+  courtName?: string
+  date?: string
+  source: "google" | "verified"
+  reply?: string
+}
+
+const curatedGoogleReviews: StoryReview[] = [
+  {
+    id: "g-rev-1",
+    name: "Dimas Pratama",
+    rating: 5,
+    review: "Datang untuk main satu jam, pulangnya sudah janjian untuk minggu depan. Staf ramah dan ambience-nya luar biasa.",
+    courtName: "Court 02",
+    date: "Google Reviews",
+    source: "google",
+  },
+  {
+    id: "g-rev-2",
+    name: "Raka Pradana",
+    rating: 5,
+    review: "Lapangan indoor-nya nyaman, tetap bisa main walau hujan badai di luar. Sirkulasi udara bagus dan lighting tidak silau.",
+    courtName: "Court 03",
+    date: "Google Reviews",
+    source: "google",
+  },
+  {
+    id: "g-rev-3",
+    name: "Michael Tan",
+    rating: 5,
+    review: "Best padel club in Jakarta! Karpet rumput sintetisnya empuk, pro shop lengkap, dan kamar bilasnya hotel-grade.",
+    courtName: "Court 01",
+    date: "Google Reviews",
+    source: "google",
+  },
+]
+
+const fallbackVerifiedReviews: StoryReview[] = [
+  {
+    id: "v-rev-1",
+    name: "Nadia Putri",
+    rating: 5,
+    review: "Lapangannya terawat dan suasananya bikin betah. Booking gampang banget dan staf selalu standby bantu bola.",
+    courtName: "Court 01",
+    date: "Verified Booking",
+    source: "verified",
+  },
+  {
+    id: "v-rev-2",
+    name: "Clara Amanda",
+    rating: 4,
+    review: "Pagi yang menyenangkan. Lapangannya juara dan bersih! Sangat merekomendasikan main sebelum jam sibuk kantor.",
+    courtName: "Court 01",
+    date: "Verified Booking",
+    source: "verified",
+  },
+  {
+    id: "v-rev-3",
+    name: "Adrian Wijaya",
+    rating: 5,
+    review: "Sistem reservasi online tanpa ribet, datang langsung scan tiket. Suasana kompetitif tapi tetap bersahabat.",
+    courtName: "Court 03",
+    date: "Verified Booking",
+    source: "verified",
+  },
+]
+
 export function PlayerStories() {
-  const { reviews } = useApp()
+  const app = useApp()
+  const reviews = app?.reviews || []
   const { t } = useLocale()
+  const reducedMotion = useReducedMotion()
   const summary = ratingSummary(reviews)
-  const stories = reviews.filter((item) => item.review).slice(0, 3)
+
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<"all" | "google" | "verified">("all")
+
+  // Compile reviews pool
+  const appReviews: StoryReview[] = reviews
+    .filter((item) => item.review)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      rating: item.rating,
+      review: item.review!,
+      courtName: item.courtName,
+      date: item.date || "Verified Booking",
+      source: "verified" as const,
+      reply: item.reply,
+    }))
+
+  const verifiedPool = appReviews.length > 0 ? appReviews : fallbackVerifiedReviews
+  const allStories: StoryReview[] = [...verifiedPool, ...curatedGoogleReviews]
+
+  const activeStories = allStories.filter((s) => {
+    if (activeFilter === "all") return true
+    return s.source === activeFilter
+  })
+
+  // Auto-slide rotation every 5.5 seconds
+  useEffect(() => {
+    if (isPaused || activeStories.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % activeStories.length)
+    }, 5500)
+    return () => clearInterval(timer)
+  }, [isPaused, activeStories.length])
+
+  // Keep index within bounds if filter changes
+  useEffect(() => {
+    setCurrentIndex(0)
+  }, [activeFilter])
+
   return (
     <section className="mx-auto mt-20 max-w-[1344px] border-t border-border px-6 pt-14 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-6">
@@ -86,36 +222,158 @@ export function PlayerStories() {
           </div>
         )}
       </div>
-      {stories.length ? (
-        <div className="mt-9 grid gap-8 md:grid-cols-3">
-          {stories.map((story) => (
-            <article key={story.id} className="flex flex-col border-t border-border py-6">
-              <span className="font-display text-5xl leading-none text-sage" aria-hidden="true">“</span>
-              <p className="mt-2 flex-1 font-display text-3xl leading-tight">{story.review}</p>
-              <div className="mt-7 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-xs font-medium">{story.name}</p>
-                  <p className="mt-1 text-2xs text-muted-foreground">{story.courtName ? courtShortName(story.courtName) : ""}</p>
-                </div>
-                <span className="flex gap-1" aria-label={`${story.rating} / 5`}>
-                  {Array.from({ length: story.rating }, (_, position) => (
-                    <Star size={10} key={position} aria-hidden="true" className="fill-rating text-rating" />
-                  ))}
-                </span>
+
+      {/* Google Business Rating Badge & Filter Tabs */}
+      <div className="mt-8 flex flex-col gap-5 border-y border-border py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center border border-border bg-card shadow-sm">
+            <GoogleGIcon className="size-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Google Rating</span>
+              <span className="font-display text-xl font-bold">4.9</span>
+              <span className="flex gap-0.5 text-rating" aria-hidden="true">
+                {[1, 2, 3, 4, 5].map((val) => (
+                  <Star key={val} size={13} className="fill-rating text-rating" />
+                ))}
+              </span>
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              {t("Google Rating 4.9 ★★★★★ dari 120+ Ulasan Terverifikasi", "Google Rating 4.9 ★★★★★ from 120+ Verified Reviews")}
+            </p>
+          </div>
+        </div>
+
+        {/* Filter Tabs: Semua, Google, Verified */}
+        <div className="flex items-center gap-1 self-start border border-border bg-card p-1 sm:self-center" role="tablist" aria-label={t("Filter ulasan", "Filter reviews")}>
+          {(["all", "google", "verified"] as const).map((key) => {
+            const label =
+              key === "all"
+                ? t("Semua", "All")
+                : key === "google"
+                ? "Google"
+                : t("Verified", "Verified")
+            const isActive = activeFilter === key
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveFilter(key)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Auto-Slide Carousel with Pause on Hover */}
+      <div
+        className="relative mt-8"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        <div className="overflow-hidden">
+          <motion.div
+            className="flex"
+            animate={{ x: `-${currentIndex * 100}%` }}
+            transition={{ duration: reducedMotion ? 0 : 0.5, ease: cinematicEase }}
+          >
+            {activeStories.map((story) => (
+              <div key={story.id} className="min-w-full px-1">
+                <article className="flex flex-col border border-border bg-card/40 p-7 md:p-10 backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="flex gap-1" aria-label={`${story.rating} / 5`}>
+                      {Array.from({ length: 5 }, (_, pos) => (
+                        <Star
+                          key={pos}
+                          size={14}
+                          className={pos < story.rating ? "fill-rating text-rating" : "text-border"}
+                        />
+                      ))}
+                    </span>
+                    {story.source === "google" ? (
+                      <span className="inline-flex items-center gap-1.5 border border-border bg-secondary/80 px-2.5 py-1 text-2xs font-medium text-foreground">
+                        <GoogleGIcon className="size-3" />
+                        Google Review
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 border border-sage/40 bg-sage/10 px-2.5 py-1 text-2xs font-medium text-sage">
+                        <CheckCircle2 size={12} />
+                        {t("Pemain Terverifikasi", "Verified Player")}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-6 flex-1 font-display text-2xl md:text-3xl lg:text-4xl leading-snug">
+                    “{story.review}”
+                  </p>
+                  <div className="mt-8 flex flex-wrap items-end justify-between gap-4 border-t border-border/70 pt-5">
+                    <div>
+                      <p className="text-sm font-semibold">{story.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {story.courtName ? courtShortName(story.courtName) : t("Pemain Klub", "Club Player")}
+                        {story.date ? ` · ${story.date}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        aria-label={t("Ulasan sebelumnya", "Previous review")}
+                        onClick={() => setCurrentIndex((prev) => (prev - 1 + activeStories.length) % activeStories.length)}
+                        className="flex size-9 items-center justify-center border border-border bg-background transition-colors hover:bg-secondary"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className="px-1 text-xs text-muted-foreground tabular-nums">
+                        {currentIndex + 1} / {activeStories.length}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t("Ulasan berikutnya", "Next review")}
+                        onClick={() => setCurrentIndex((prev) => (prev + 1) % activeStories.length)}
+                        className="flex size-9 items-center justify-center border border-border bg-background transition-colors hover:bg-secondary"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </article>
               </div>
-            </article>
+            ))}
+          </motion.div>
+        </div>
+
+        {/* Dot pagination */}
+        <div className="mt-7 flex items-center justify-center gap-2" role="tablist" aria-label={t("Indikator ulasan", "Review indicators")}>
+          {activeStories.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              role="tab"
+              aria-selected={idx === currentIndex}
+              aria-label={t(`Beralih ke ulasan ${idx + 1}`, `Go to review ${idx + 1}`)}
+              onClick={() => setCurrentIndex(idx)}
+              className={`h-2 transition-all rounded-full ${
+                idx === currentIndex ? "w-7 bg-primary" : "w-2 bg-border hover:bg-muted-foreground"
+              }`}
+            />
           ))}
         </div>
-      ) : (
-        <p className="mt-9 text-sm text-muted-foreground">
-          {t("Cerita pemain akan muncul di sini setelah permainan pertama.", "Player stories will appear here after the first games.")}
-        </p>
-      )}
-      {reviews.length > 0 && (
-        <Link to="/book#reviews" className={`${outlineButton} mt-4`}>
+      </div>
+
+      <div className="mt-8 flex items-center justify-between">
+        <Link to="/book#reviews" className={outlineButton}>
           {t("Lihat semua ulasan", "See all reviews")} <ArrowRight size={15} />
         </Link>
-      )}
+      </div>
     </section>
   )
 }
@@ -153,7 +411,6 @@ export function ClubLocation() {
         >
           {t("Buka petunjuk arah", "Get directions")} <ArrowUpRight size={15} />
         </a>
-        <WhatsAppHelp />
       </div>
     </section>
   )

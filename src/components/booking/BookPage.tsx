@@ -121,14 +121,18 @@ export default function BookPage() {
             type="button"
             aria-pressed={court.id === item.id}
             onClick={() => setParams({ court: String(item.id), date }, { replace: true, preventScrollReset: true })}
-            className={`flex items-center gap-4 border p-3 text-left transition ${court.id === item.id ? "border-primary bg-secondary" : "border-border hover:bg-secondary/50"}`}
+            className={`flex items-center gap-4 border p-3 text-left transition shadow-xs ${
+              court.id === item.id
+                ? "border-primary bg-white ring-1 ring-primary/25"
+                : "border-border bg-white hover:border-primary/50"
+            }`}
           >
             <img src={item.photo} alt="" className="h-16 w-20 object-cover" />
             <span className="min-w-0">
               <span className="block text-sm font-semibold">{courtShortName(content.court(item, "name"))}</span>
               <span className="mt-1 block text-xs text-muted-foreground">{item.type} · {money(item.price)} / {t("jam", "hr")}</span>
             </span>
-            {court.id === item.id && <Check size={16} className="ml-auto shrink-0" aria-hidden="true" />}
+            {court.id === item.id && <Check size={16} className="ml-auto shrink-0 text-primary" aria-hidden="true" />}
           </button>
         ))}
       </div>
@@ -162,8 +166,8 @@ export default function BookPage() {
           {facilities.length > 0 && (
             <ul className="mt-7 flex flex-wrap gap-3" aria-label={t("Fasilitas klub", "Club facilities")}>
               {facilities.map((item) => (
-                <li key={item.id} className="flex items-center gap-2 border border-border px-3 py-2 text-xs">
-                  <Check size={12} aria-hidden="true" /> {content.facility(item, "name")}
+                <li key={item.id} className="flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs shadow-2xs font-medium">
+                  <Check size={12} className="text-primary" aria-hidden="true" /> {content.facility(item, "name")}
                 </li>
               ))}
             </ul>
@@ -185,7 +189,11 @@ export default function BookPage() {
                 type="button"
                 aria-pressed={duration === minutes}
                 onClick={() => setDuration(minutes)}
-                className={`min-h-11 border text-xs transition ${duration === minutes ? "border-primary bg-secondary" : "border-border hover:bg-background"}`}
+                className={`min-h-11 border text-xs transition ${
+                  duration === minutes
+                    ? "border-primary bg-primary text-primary-foreground font-semibold"
+                    : "border-border bg-card text-foreground hover:border-primary/50"
+                }`}
               >
                 {minutes} {t("menit", "min")}
               </button>

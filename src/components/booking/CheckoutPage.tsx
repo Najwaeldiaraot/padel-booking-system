@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router"
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, QrCode, ShieldCheck, Sparkles } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Copy, CreditCard, ExternalLink, QrCode, RefreshCw, ShieldCheck, Sparkles, Zap } from "lucide-react"
 import { api } from "@/lib/api"
 import { generateFallbackQrisString } from "@/lib/midtrans"
 import {
@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [copiedQr, setCopiedQr] = useState(false)
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [checkingStatus, setCheckingStatus] = useState(false)
+  const [simulatingPay, setSimulatingPay] = useState(false)
   usePageTitle(t("Checkout", "Checkout"), club.name)
   const load = useCallback(async () => {
     if (!user) return
@@ -105,6 +106,29 @@ export default function CheckoutPage() {
       setCheckingStatus(false)
     }
   }
+
+  const handleSimulatePay = async () => {
+    if (!booking) return
+    setSimulatingPay(true)
+    setError("")
+    try {
+      const res = await fetch("/api/payment/simulate-pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: booking.id }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Gagal memproses pembayaran otomatis di Midtrans Sandbox")
+      }
+      await refresh()
+      navigate(`/confirmation/${booking.id}`, { replace: true })
+    } catch (err: any) {
+      setError(err.message || "Gagal melakukan pembayaran otomatis via Midtrans Sandbox")
+    } finally {
+      setSimulatingPay(false)
+    }
+  }
   if (!user)
     return (
       <ErrorState
@@ -165,13 +189,15 @@ export default function CheckoutPage() {
           <div
             role="timer"
             aria-live="off"
-            className={`flex items-center justify-between gap-4 border p-4 text-xs ${expired ? "border-destructive text-destructive" : "border-border bg-secondary"}`}
+            className={`flex items-center justify-between gap-4 border p-4 text-xs shadow-xs ${
+              expired ? "border-destructive/40 bg-danger-soft text-destructive" : "border-border bg-white text-foreground"
+            }`}
           >
-            <span className="flex items-center gap-2">
-              <Clock3 size={16} aria-hidden="true" />
+            <span className="flex items-center gap-2 font-medium">
+              <Clock3 size={16} className={expired ? "text-destructive" : "text-primary"} aria-hidden="true" />
               {expired ? t("Slot sudah dilepas.", "Your slot has been released.") : t("Slot ditahan untukmu", "Your slot is held")}
             </span>
-            <span className="font-mono text-base">{formatCountdown(seconds)}</span>
+            <span className="font-mono text-base font-semibold">{formatCountdown(seconds)}</span>
           </div>
           {error && <p role="alert" className="mt-5 border border-destructive/20 bg-danger-soft p-4 text-sm text-destructive">{error}</p>}
           {expired ? (
@@ -183,130 +209,182 @@ export default function CheckoutPage() {
             </div>
           ) : payment ? (
             <div className="mt-7">
-              <h2 className="font-display text-3xl">{t("Menunggu pembayaran", "Awaiting payment")}</h2>
-              <div className="mt-5 border border-border bg-card p-6">
-                <p className="text-sm font-medium">{paymentMethods.find((item) => item.id === payment.method)?.label}</p>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{t("Menunggu pembayaran", "Awaiting payment")}</h2>
+              <div className="mt-5 border border-border bg-card p-6 sm:p-8">
+                {/* Clean Header: Payment Method & Total (Clean modern sans-serif) */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                  <div>
+                    <span className="text-2xs font-semibold uppercase tracking-widest text-primary block">
+                      Metode Pembayaran
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                      {paymentMethods.find((item) => item.id === payment.method)?.label}
+                    </h3>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xs uppercase tracking-wider text-muted-foreground block">
+                      Total Tagihan
+                    </span>
+                    <span className="text-base sm:text-lg font-bold text-foreground">
+                      {money(payment.amount)}
+                    </span>
+                  </div>
+                </div>
+
                 {payment.method === "qris" ? (
                   (() => {
                     const effectiveQr = payment.qrString || generateFallbackQrisString(payment.bookingId, payment.amount)
-                    const qrImgSrc = payment.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(effectiveQr)}`
+                    const qrImgSrc = payment.qrImageUrl || `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(effectiveQr)}`
 
                     return (
-                      <div className="mt-4 flex flex-col items-center justify-center rounded-lg border border-border bg-muted/20 p-5 text-center">
-                        <div className="mb-2 flex items-center gap-1.5 rounded bg-emerald-700/10 px-2.5 py-1 text-2xs font-semibold uppercase text-emerald-800">
-                          <QrCode size={13} />
-                          QRIS Standar Nasional (Midtrans Sandbox)
-                        </div>
+                      <div className="py-6 flex flex-col items-center justify-center text-center">
+                        {/* QR Code - Direct image without nested card wrappers */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={qrImgSrc}
                           alt="QRIS Code"
-                          width={180}
-                          height={180}
-                          className="my-3 rounded-lg border border-border bg-white p-2 shadow-sm"
+                          width={220}
+                          height={220}
+                          className="block size-52 sm:size-56 rounded-md shadow-xs bg-white"
                         />
-                        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+
+                        <p className="mt-3.5 text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
+                          <QrCode size={14} className="text-primary shrink-0" />
+                          Scan menggunakan BCA, GoPay, ShopeePay, Dana, OVO, atau m-Banking
+                        </p>
+
+                        {/* Clean Actions without Emojis */}
+                        <div className="mt-6 w-full max-w-sm space-y-2.5">
                           <button
                             type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(effectiveQr)
-                              setCopiedQr(true)
-                              setTimeout(() => setCopiedQr(false), 2000)
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-3 py-1.5 text-2xs font-medium text-foreground transition hover:bg-secondary"
+                            disabled={simulatingPay || !!busy}
+                            onClick={handleSimulatePay}
+                            className={`${button} w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white flex items-center justify-center gap-2 text-xs font-semibold shadow-xs cursor-pointer`}
                           >
-                            {copiedQr ? <><Check size={12} className="text-emerald-600" /> String QR Disalin</> : <><Copy size={12} /> Salin QR String (EMVCo)</>}
+                            {simulatingPay ? (
+                              <Spinner label="Menyelesaikan pembayaran di Midtrans…" className="text-white" />
+                            ) : (
+                              <>
+                                <Zap size={14} className="fill-current text-amber-300" />
+                                <span>Bayar Otomatis (Midtrans Sandbox)</span>
+                              </>
+                            )}
                           </button>
 
-                          {payment.qrImageUrl && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {payment.qrImageUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(payment.qrImageUrl!)
+                                  setCopiedUrl(true)
+                                  setTimeout(() => setCopiedUrl(false), 2000)
+                                }}
+                                className="inline-flex items-center justify-center gap-1.5 border border-border bg-background px-3 py-2 text-2xs font-medium text-foreground hover:bg-secondary transition cursor-pointer"
+                              >
+                                {copiedUrl ? (
+                                  <>
+                                    <Check size={12} className="text-emerald-600" />
+                                    <span>URL Disalin</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ExternalLink size={12} />
+                                    <span>Salin URL QR</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <div />
+                            )}
+
                             <button
                               type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(payment.qrImageUrl!)
-                                setCopiedUrl(true)
-                                setTimeout(() => setCopiedUrl(false), 2000)
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-3 py-1.5 text-2xs font-medium text-foreground transition hover:bg-secondary"
+                              disabled={checkingStatus}
+                              onClick={checkPaymentStatus}
+                              className="inline-flex items-center justify-center gap-1.5 border border-border bg-background px-3 py-2 text-2xs font-medium text-foreground hover:bg-secondary transition cursor-pointer"
                             >
-                              {copiedUrl ? <><Check size={12} className="text-emerald-600" /> URL Disalin</> : <><ExternalLink size={12} /> Salin URL Gambar QR</>}
+                              {checkingStatus ? (
+                                <Spinner label="Memeriksa…" className="text-primary" />
+                              ) : (
+                                <>
+                                  <RefreshCw size={12} />
+                                  <span>Cek Status</span>
+                                </>
+                              )}
                             </button>
-                          )}
-                        </div>
+                          </div>
 
-                        <div className="mt-3 flex flex-col items-center gap-2">
-                          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-                            Buka <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Midtrans Simulator QRIS ↗</a> lalu scan QR atau paste URL / string QRIS di atas.
+                          <p className="pt-2 text-2xs text-muted-foreground leading-relaxed">
+                            Ingin tes manual? Buka{" "}
+                            <a
+                              href="https://simulator.sandbox.midtrans.com/v2/qris/index"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-primary underline inline-flex items-center gap-0.5"
+                            >
+                              Midtrans Simulator v2
+                              <ExternalLink size={10} />
+                            </a>{" "}
+                            lalu paste URL Gambar QR di atas.
                           </p>
-                          <button
-                            type="button"
-                            disabled={checkingStatus}
-                            onClick={checkPaymentStatus}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition cursor-pointer"
-                          >
-                            {checkingStatus ? <Spinner label="Memeriksa status…" className="text-primary" /> : <>🔄 Cek Status Pembayaran (Midtrans)</>}
-                          </button>
                         </div>
-
-                        <p className="mt-3 text-2xs text-amber-800 bg-amber-500/10 border border-amber-500/20 rounded p-2 max-w-sm text-left leading-relaxed">
-                          💡 <strong>Catatan Sandbox:</strong> QRIS Midtrans berlaku 15 menit. Jika muncul &quot;Transaction is unsuccessful&quot; di simulator, berarti transaksi tersebut sudah kedaluwarsa. Anda dapat klik tombol &quot;⚡ Bayar QRIS Instan&quot; di bawah untuk simulasi langsung.
-                        </p>
                       </div>
                     )
                   })()
                 ) : payment.instructions ? (
-                  <>
-                    <p className={`${eyebrow} mt-5 text-muted-foreground`}>{t("Nomor virtual account", "Virtual account number")}</p>
+                  <div className="py-6">
+                    <p className={`${eyebrow} text-muted-foreground`}>{t("Nomor virtual account", "Virtual account number")}</p>
                     <p className="mt-2 font-mono text-2xl tracking-wider">{payment.instructions}</p>
-                  </>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        run("success", async () => {
+                          const result = await api.payments.simulateWebhook(payment.id, "success")
+                          await refresh()
+                          navigate(`/confirmation/${result.booking.id}`, { replace: true })
+                        })
+                      }
+                      className={`${button} mt-6 w-full`}
+                    >
+                      {busy === "success" ? <Spinner label={t("Mengonfirmasi…", "Confirming…")} className="text-primary-foreground" /> : <>{t("Simulasikan Pembayaran Berhasil", "Simulate Payment Success")} <CheckCircle2 size={16} /></>}
+                    </button>
+                  </div>
                 ) : (
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                    {t("Buka aplikasi e-wallet di ponselmu untuk menyetujui pembayaran.", "Open your e-wallet app to approve the payment.")}
-                  </p>
+                  <div className="py-6">
+                    <p className="text-sm leading-7 text-muted-foreground">
+                      {t("Buka aplikasi e-wallet di ponselmu untuk menyetujui pembayaran.", "Open your e-wallet app to approve the payment.")}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        run("success", async () => {
+                          const result = await api.payments.simulateWebhook(payment.id, "success")
+                          await refresh()
+                          navigate(`/confirmation/${result.booking.id}`, { replace: true })
+                        })
+                      }
+                      className={`${button} mt-6 w-full`}
+                    >
+                      {busy === "success" ? <Spinner label={t("Mengonfirmasi…", "Confirming…")} className="text-primary-foreground" /> : <>{t("Simulasikan Pembayaran Berhasil", "Simulate Payment Success")} <CheckCircle2 size={16} /></>}
+                    </button>
+                  </div>
                 )}
-                <div className="mt-5 flex justify-between border-t border-border pt-4 text-sm">
-                  <span>{t("Jumlah", "Amount")}</span>
-                  <strong>{money(payment.amount)}</strong>
+
+                <div className="flex items-center justify-between border-t border-border pt-4 text-xs text-muted-foreground">
+                  <span>{t("Referensi", "Reference")} <span className="font-mono font-medium text-foreground">{payment.gatewayRef}</span></span>
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() => setPayment(null)}
+                    className={`${textLink} text-xs`}
+                  >
+                    {t("Ganti metode pembayaran", "Use another method")}
+                  </button>
                 </div>
-                <p className="mt-2 text-2xs text-muted-foreground">{t("Referensi", "Reference")} {payment.gatewayRef}</p>
               </div>
-              <div className="mt-6 border border-dashed border-border p-5">
-                <p className={`${eyebrow} text-clay`}>{t("Simulasi gateway", "Gateway simulation")}</p>
-                <p className="mt-2 text-xs leading-6 text-muted-foreground">
-                  {t("Pratinjau ini belum terhubung ke payment gateway. Pilih hasil pembayaran untuk melanjutkan alur.", "This preview isn't connected to a payment gateway yet. Choose an outcome to continue the flow.")}
-                </p>
-                <button
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() =>
-                    run("success", async () => {
-                      const result = await api.payments.simulateWebhook(payment.id, "success")
-                      await refresh()
-                      navigate(`/confirmation/${result.booking.id}`, { replace: true })
-                    })
-                  }
-                  className={`${button} mt-4 w-full`}
-                >
-                  {busy === "success" ? <Spinner label={t("Mengonfirmasi…", "Confirming…")} className="text-primary-foreground" /> : <>{payment.method === "qris" ? "⚡ Bayar QRIS Instan (Simulasi Berhasil)" : t("Pembayaran berhasil", "Payment succeeds")} <CheckCircle2 size={16} /></>}
-                </button>
-                <button
-                  type="button"
-                  disabled={!!busy}
-                  onClick={() =>
-                    run("failed", async () => {
-                      await api.payments.simulateWebhook(payment.id, "failed")
-                      setPayment(null)
-                      setFailed(true)
-                      await refresh()
-                    })
-                  }
-                  className={`${outlineButton} mt-3 w-full`}
-                >
-                  {t("Pembayaran gagal", "Payment fails")}
-                </button>
-              </div>
-              <button type="button" disabled={!!busy} onClick={() => setPayment(null)} className={`${textLink} mt-3`}>
-                {t("Ganti metode pembayaran", "Use another method")}
-              </button>
             </div>
           ) : (
             <div className="mt-7">
@@ -315,7 +393,7 @@ export default function CheckoutPage() {
                   {t("Pembayaran belum berhasil. Pilih metode lain atau coba lagi sebelum waktu habis.", "The payment didn't go through. Try again or pick another method before time runs out.")}
                 </p>
               )}
-              <h2 className="font-display text-3xl">{t("Metode pembayaran", "Payment method")}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{t("Metode pembayaran", "Payment method")}</h2>
               <fieldset className="mt-5 space-y-3">
                 <legend className="sr-only">{t("Metode pembayaran", "Payment method")}</legend>
                 {paymentMethods.map((item) => (

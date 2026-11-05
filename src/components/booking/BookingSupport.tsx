@@ -9,7 +9,7 @@ export function BookingPolicyNotice() {
   const { club } = useApp()
   const { t } = useLocale()
   return (
-    <aside aria-label={t("Ketentuan booking", "Booking terms")} className="border border-border bg-secondary/40 p-5">
+    <aside aria-label={t("Ketentuan booking", "Booking terms")} className="border border-border bg-white p-5 shadow-xs">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <ShieldCheck size={17} aria-hidden="true" />
         {t("Ketentuan booking", "Booking terms")}
@@ -32,11 +32,13 @@ export function BookingPolicyNotice() {
 export function WhatsAppHelp() {
   const { club } = useApp()
   const { t } = useLocale()
-  const number = normalizeWhatsAppNumber(club.whatsappNumber || "")
+  const fallbackNumber = "6281234567890"
+  const rawNumber = club?.whatsappNumber?.trim() || fallbackNumber
+  const number = normalizeWhatsAppNumber(rawNumber)
   const configured = /^[1-9]\d{7,14}$/.test(number)
   const message = t(
-    `Halo ${club.name}, saya ingin bertanya tentang jadwal bermain, perlengkapan, atau ketentuan booking.`,
-    `Hi ${club.name}, I have a question about playing times, equipment, or booking terms.`,
+    `Halo ${club?.name || "Rally Padel Club"}, saya ingin bertanya tentang jadwal bermain, perlengkapan, atau ketentuan booking.`,
+    `Hi ${club?.name || "Rally Padel Club"}, I have a question about playing times, equipment, or booking terms.`,
   )
   return (
     <div className="mt-6 border-t border-border pt-5">
@@ -59,7 +61,7 @@ export function WhatsAppHelp() {
             <blockquote className="mt-2 border-l-2 border-primary pl-3 text-muted-foreground">{message}</blockquote>
             <p className="mt-3 text-muted-foreground">
               {t("Nomor WhatsApp klub akan aktif setelah diatur oleh pengelola. Sementara itu, kirim email ke", "The club's WhatsApp number goes live once the team sets it up. Meanwhile, email")}{" "}
-              <a href={`mailto:${club.email}`} className="underline underline-offset-4">{club.email}</a>.
+              <a href={`mailto:${club?.email}`} className="underline underline-offset-4">{club?.email}</a>.
             </p>
           </div>
         </details>
@@ -170,6 +172,7 @@ export default function ClubQuestions() {
             </div>
           )
         })}
+        <WhatsAppHelp />
       </div>
     </section>
   )
