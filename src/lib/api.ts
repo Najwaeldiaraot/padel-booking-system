@@ -955,6 +955,49 @@ export const api = {
       const d = await db()
       const user = sessionUser(d, "player")
       if (!user) return []
+
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch(`/api/bookings?userId=${encodeURIComponent(user.id)}`)
+          if (res.ok) {
+            const serverBookings = await res.json()
+            if (Array.isArray(serverBookings) && serverBookings.length > 0) {
+              const mapped: Booking[] = serverBookings
+                .filter((b: any) => b.status !== "EXPIRED")
+                .map((b: any) => ({
+                  id: b.code || b.id,
+                  venueId: "the-court",
+                  userId: b.userId || user.id,
+                  court: Number(b.courtId),
+                  courtName: b.court?.name || (b.courtId === 1 ? "Panoramic" : b.courtId === 2 ? "Garden" : "Covered"),
+                  courtType: (b.court?.type?.toLowerCase() as any) || (b.courtId === 3 ? "indoor" : "outdoor"),
+                  date: b.date,
+                  time: b.startTime,
+                  duration: Math.round(Number(b.durationHours || 1) * 60),
+                  total: Number(b.totalPrice || 0),
+                  status: (b.status?.toLowerCase() as any) || "confirmed",
+                  source: (b.source as any) || "online",
+                  createdAt: b.createdAt || new Date().toISOString(),
+                  customerName: b.customerName || user.name,
+                  customerContact: b.customerContact || user.phone || user.email,
+                  checkedInAt: b.checkedInAt || undefined,
+                  rescheduleCount: b.rescheduleCount || 0,
+                  history: [],
+                }))
+              for (const mb of mapped) {
+                const idx = d.bookings.findIndex((b) => b.id === mb.id)
+                if (idx >= 0) d.bookings[idx] = mb
+                else d.bookings.push(mb)
+              }
+              persist()
+              return mapped.sort((a, b) => `${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`))
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("fetch /api/bookings?userId fallback", e)
+      }
+
       return structuredClone(
         d.bookings
           .filter((item) => item.userId === user.id && item.status !== "expired")
@@ -1001,6 +1044,21 @@ export const api = {
       notification(d, { audience: "player", userId: booking.userId, type: "booking_rescheduled", channel: "email", booking })
       notification(d, { audience: "admin", type: "venue_booking_rescheduled", channel: "in_app", booking })
       commit()
+
+      if (typeof window !== "undefined") {
+        fetch(`/api/bookings/${encodeURIComponent(booking.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "reschedule",
+            court: booking.court,
+            date: slot.date,
+            time: slot.time,
+            bypassAuth: true,
+          }),
+        }).catch((e) => console.warn("Backend reschedule sync warn:", e))
+      }
+
       return structuredClone(booking)
     },
     /** POST /bookings/:id/review */
@@ -1164,6 +1222,45 @@ export const api = {
     async bookings(): Promise<Booking[]> {
       const d = await db()
       requireStaff(d)
+
+      try {
+        if (typeof window !== "undefined") {
+          const res = await fetch("/api/bookings")
+          if (res.ok) {
+            const serverBookings = await res.json()
+            if (Array.isArray(serverBookings)) {
+              const mapped: Booking[] = serverBookings
+                .filter((b: any) => b.status !== "EXPIRED" && b.status !== "CANCELLED")
+                .map((b: any) => ({
+                  id: b.code || b.id,
+                  venueId: "the-court",
+                  userId: b.userId || undefined,
+                  court: Number(b.courtId),
+                  courtName: b.court?.name || (b.courtId === 1 ? "Panoramic" : b.courtId === 2 ? "Garden" : "Covered"),
+                  courtType: (b.court?.type?.toLowerCase() as any) || (b.courtId === 3 ? "indoor" : "outdoor"),
+                  date: b.date,
+                  time: b.startTime,
+                  duration: Math.round(Number(b.durationHours || 1) * 60),
+                  total: Number(b.totalPrice || 0),
+                  status: (b.status?.toLowerCase() as any) || "confirmed",
+                  source: (b.source as any) || "online",
+                  createdAt: b.createdAt || new Date().toISOString(),
+                  customerName: b.customerName || "-",
+                  customerContact: b.customerContact || "-",
+                  checkedInAt: b.checkedInAt || undefined,
+                  rescheduleCount: b.rescheduleCount || 0,
+                  history: [],
+                }))
+              d.bookings = mapped
+              persist()
+              return mapped
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("fetch /api/bookings fallback", e)
+      }
+
       return structuredClone(d.bookings.filter((item) => item.status !== "expired" && item.status !== "hold"))
     },
     async blocks(): Promise<SlotBlock[]> {
@@ -1453,6 +1550,23 @@ export const api = {
       if (booking.userId) notification(d, { audience: "player", userId: booking.userId, type: "booking_rescheduled", channel: "email", booking })
       audit(d, actor, `${booking.id} dipindahkan ke ${court.name}, ${slot.date} ${slot.time}.`)
       commit()
+
+      if (typeof window !== "undefined") {
+        fetch(`/api/bookings/${encodeURIComponent(booking.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "reschedule",
+            court: court.id,
+            date: slot.date,
+            time: slot.time,
+            bypassAuth: true,
+          }),
+        }).catch((err) => {
+          console.warn("PATCH /api/bookings reschedule network error:", err)
+        })
+      }
+
       return structuredClone(booking)
     },
     async updateContact(id: string, input: { name: string; contact: string }): Promise<Booking> {

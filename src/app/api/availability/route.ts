@@ -10,6 +10,21 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
 
+    // 0. Auto-expire old PENDING_PAYMENT bookings whose hold time has passed (10 mins hold)
+    try {
+      await prisma.booking.updateMany({
+        where: {
+          status: "PENDING_PAYMENT",
+          holdExpiresAt: { lt: new Date() },
+        },
+        data: {
+          status: "EXPIRED",
+        },
+      });
+    } catch (e) {
+      console.warn("[API Availability] Stale booking expiry warning:", e);
+    }
+
     const busySlots: BusySlot[] = [];
 
     // 1. Fetch active bookings from Supabase PostgreSQL via Prisma
