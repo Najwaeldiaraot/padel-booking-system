@@ -1,55 +1,45 @@
-import Link from "next/link";
-import { ArrowLeft, Calendar } from "lucide-react";
+import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export default function NotFound() {
   return (
-    <main className="min-h-[85vh] flex flex-col items-center justify-center px-4 py-16 bg-[#F5F3EB] text-[#183D32]">
-      {/* Editorial Court Graphic / Watermark */}
-      <div className="relative flex flex-col items-center text-center max-w-xl mx-auto">
-        <div className="inline-flex items-center gap-2 border border-[#183D32]/20 bg-[#E9EDE2]/70 px-3.5 py-1 text-2xs font-semibold uppercase tracking-widest text-[#183D32] mb-6">
-          <span>Error 404 · Out of Bounds</span>
-        </div>
-
-        {/* Large Editorial Headline */}
-        <h1 className="font-display text-8xl sm:text-9xl font-bold tracking-tight text-[#183D32] leading-none select-none">
-          404
-        </h1>
-
-        <div className="my-6 h-0.5 w-16 bg-[#9B7058]" />
-
-        <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#183D32]">
-          Halaman Tidak Ditemukan
-        </h2>
-
-        <p className="mt-3 text-sm sm:text-base text-[#183D32]/75 leading-relaxed max-w-md">
-          Bola keluar dari garis batas lapangan atau tautan yang Anda tuju telah dipindahkan.
-          Mari kembali ke arena untuk melanjutkan permainan.
-        </p>
-
-        {/* CTA Actions */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <Link
-            href="/"
-            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 border border-[#183D32] bg-transparent px-6 text-sm font-medium text-[#183D32] transition duration-200 hover:bg-[#183D32]/10"
-          >
-            <ArrowLeft size={16} />
-            <span>Kembali ke Beranda</span>
-          </Link>
-
-          <Link
-            href="/#booking"
-            className="inline-flex min-h-12 w-full sm:w-auto items-center justify-center gap-2.5 bg-[#183D32] px-6 text-sm font-medium text-white transition duration-200 hover:bg-[#295545] shadow-sm"
-          >
-            <Calendar size={16} />
-            <span>Reservasi Lapangan</span>
-          </Link>
-        </div>
-
-        {/* Subtle Club Microprint */}
-        <p className="mt-12 text-2xs uppercase tracking-widest text-[#183D32]/50 font-mono">
-          Rally Padel Club · Jakarta Selatan
-        </p>
+    <main className="fixed inset-0 z-50 flex min-h-screen flex-col items-center justify-center overflow-y-auto bg-[#0F1715] px-6 text-center text-[#F5F3EB]">
+      {/* Subtle luxury badge */}
+      <div className="inline-flex items-center gap-2 border border-white/10 bg-white/5 px-4 py-1.5 text-2xs font-semibold uppercase tracking-widest text-[#B4C29D]">
+        <span>404 · Error · Out of Bounds</span>
       </div>
+
+      {/* Massive 404 headline */}
+      <h1 className="mt-6 font-display text-8xl font-bold tracking-tight text-[#F5F3EB] sm:text-9xl md:text-[11rem] select-none leading-none">
+        404
+      </h1>
+
+      <div className="my-6 h-0.5 w-16 bg-[#C49A6C]/60" />
+
+      {/* Friendly description */}
+      <h2 className="font-display text-2xl font-semibold tracking-tight text-[#F5F3EB] sm:text-3xl">
+        Halaman Tidak Ditemukan
+      </h2>
+
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-[#F5F3EB]/70">
+        Jadwal atau halaman yang kamu tuju mungkin telah dipindahkan, dibatalkan, atau tautan tidak valid. Mari kembali ke arena.
+      </p>
+
+      {/* Primary CTA */}
+      <div className="mt-8">
+        <Link
+          href="/"
+          className="inline-flex min-h-12 items-center justify-center gap-2.5 border border-[#B4C29D]/40 bg-[#B4C29D] px-7 py-3 text-xs font-semibold uppercase tracking-wider text-[#0F1715] transition duration-200 hover:bg-[#c2cfae] shadow-lg"
+        >
+          <ArrowLeft size={16} />
+          <span>Kembali ke Beranda</span>
+        </Link>
+      </div>
+
+      {/* Luxury Club Accent */}
+      <p className="mt-14 font-mono text-2xs uppercase tracking-widest text-[#F5F3EB]/40">
+        Rally Padel Club · Jakarta Selatan
+      </p>
     </main>
-  );
+  )
 }

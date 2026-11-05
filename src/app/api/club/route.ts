@@ -53,3 +53,26 @@ export async function GET() {
     return NextResponse.json(defaultClub);
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const current = (await getCachedData<typeof defaultClub>("club_catalog")) || defaultClub;
+    const updated = {
+      ...current,
+      ...body,
+      whatsappNumber: body.whatsappNumber !== undefined ? body.whatsappNumber : current.whatsappNumber,
+    };
+
+    // Store in Upstash Redis (TTL 30 days)
+    await setCachedData("club_catalog", updated, 86400 * 30);
+
+    return NextResponse.json(updated);
+  } catch (error: any) {
+    console.error("[API Club PATCH] Error:", error);
+    return NextResponse.json(
+      { error: error?.message || "Failed to update club configuration" },
+      { status: 500 },
+    );
+  }
+}

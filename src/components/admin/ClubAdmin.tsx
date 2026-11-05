@@ -343,7 +343,7 @@ export function ContentSection() {
 /* ---------- Settings & policy ---------- */
 
 function IdentityEditor({ close }: { close: () => void }) {
-  const { club } = useApp()
+  const { club, refresh } = useApp()
   const [draft, setDraft] = useState<ClubConfig>(configOf(club))
   const { busy, error, save, setError } = useSave(close)
   const set = (patch: Partial<ClubConfig>) => setDraft({ ...draft, ...patch })
@@ -357,7 +357,10 @@ function IdentityEditor({ close }: { close: () => void }) {
           const whatsapp = draft.whatsappNumber.trim()
           if (whatsapp && (!/^\+?[\d\s()-]+$/.test(whatsapp) || !/^[1-9]\d{7,14}$/.test(normalizeWhatsAppNumber(whatsapp)))) return setError("Isi nomor WhatsApp dengan kode negara, mis. +62, atau kosongkan.")
           if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(draft.email.trim())) return setError("Isi email klub yang valid.")
-          save(() => api.admin.updateClub({ ...draft, name: draft.name.trim(), address: draft.address.trim(), email: draft.email.trim(), whatsappNumber: whatsapp ? normalizeWhatsAppNumber(whatsapp) : "" }, "Identitas klub diperbarui."), "Identitas klub tersimpan.")
+          save(async () => {
+            await api.admin.updateClub({ ...draft, name: draft.name.trim(), address: draft.address.trim(), email: draft.email.trim(), whatsappNumber: whatsapp ? normalizeWhatsAppNumber(whatsapp) : "" }, "Identitas klub diperbarui.")
+            await refresh?.()
+          }, "Identitas klub tersimpan.")
         }}
       >
         <div className="grid gap-3 sm:grid-cols-2">

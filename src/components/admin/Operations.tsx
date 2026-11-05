@@ -483,7 +483,18 @@ export function BookingDetailDialog({ booking, close }: { booking: Booking; clos
             {busy ? <Spinner className="text-white" /> : !isBypass && !isToday ? `Check-in Pemain (${dateLabel(booking.date, true)} — Butuh Mode Testing)` : "Check-in Pemain (Sedang Bermain)"}
           </button>
           <div className="grid gap-3 sm:grid-cols-4">
-            <button type="button" className={outlineButton} onClick={() => setMode("move")}>Pindahkan jadwal</button>
+            <button
+              type="button"
+              className={outlineButton}
+              onClick={() => {
+                setCourt(booking.court)
+                setDate(booking.date)
+                setTime(starts.includes(booking.time) ? booking.time : "")
+                setMode("move")
+              }}
+            >
+              Pindahkan jadwal
+            </button>
             <button type="button" className={outlineButton} onClick={() => setMode("edit")}>Edit data pemain</button>
             <button type="button" className={`${outlineButton} text-destructive`} onClick={() => setMode("cancel")}>Batalkan</button>
             <button type="button" className={`${outlineButton} text-destructive flex items-center justify-center gap-1.5`} onClick={() => setMode("delete")}><Trash2 size={13} /> Hapus booking</button>

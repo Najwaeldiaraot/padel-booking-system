@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router"
 import { ArrowRight, ArrowUpRight, CalendarDays, CalendarPlus, CheckCircle2, Copy, FileText, Mail, QrCode, Star } from "lucide-react"
-import { InvoiceModal } from "./InvoiceModal"
+import { InvoiceModal, QUICK_FEEDBACK_CHIPS } from "./InvoiceModal"
 import { api } from "@/lib/api"
 import {
   button,
@@ -393,6 +393,21 @@ function RatingDialog({ booking, close }: { booking: Booking | null; close: () =
     setReview("")
   }, [booking])
   const labels = ["", t("Kurang memuaskan", "Disappointing"), t("Bisa lebih baik", "Could be better"), t("Cukup baik", "Good"), t("Menyenangkan", "Great"), t("Luar biasa!", "Outstanding!")]
+
+  const handleToggleChip = (chip: string) => {
+    setReview((prev) => {
+      const trimmed = prev.trim()
+      if (!trimmed) return chip
+      if (trimmed.includes(chip)) {
+        return trimmed
+          .replace(chip, "")
+          .replace(/\s{2,}/g, " ")
+          .trim()
+      }
+      return `${trimmed} ${chip}`
+    })
+  }
+
   return (
     <Modal open={!!booking} close={close} title={t("Bagaimana permainanmu?", "How was your game?")} closeLabel={t("Tutup", "Close")}>
       <p className="text-sm text-muted-foreground">{t(`Penilaianmu membantu pemain lain mengenal ${club.name}.`, `Your rating helps other players get to know ${club.name}.`)}</p>
@@ -404,7 +419,34 @@ function RatingDialog({ booking, close }: { booking: Booking | null; close: () =
         ))}
       </div>
       <p aria-live="polite" className="mt-3 text-center text-sm">{stars ? labels[stars] : t("Pilih jumlah bintang", "Choose a star rating")}</p>
-      <label className="mt-6 block text-xs">
+
+      {/* Quick Feedback Chips */}
+      <div className="mt-4">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground block mb-1.5">
+          {t("Pilihan Komentar Cepat:", "Quick Feedback:")}
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {QUICK_FEEDBACK_CHIPS.map((chip) => {
+            const isSelected = review.includes(chip)
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => handleToggleChip(chip)}
+                className={`rounded-full px-2.5 py-1 text-2xs transition-all border ${
+                  isSelected
+                    ? "bg-[#1C2621] text-[#F4F1EA] border-[#1C2621] font-medium"
+                    : "bg-white/80 text-[#1C2621]/80 border-[#1C2621]/20 hover:bg-[#1C2621]/5 hover:border-[#1C2621]/40"
+                }`}
+              >
+                {chip}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <label className="mt-4 block text-xs">
         {t("Ceritakan pengalamanmu (opsional)", "Tell us about it (optional)")}
         <textarea value={review} onChange={(event) => setReview(event.target.value)} maxLength={500} className={`${field} mt-2 min-h-28 py-3`} />
       </label>

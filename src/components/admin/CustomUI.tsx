@@ -17,6 +17,7 @@ export function LuxurySelect({
   ariaLabel,
   className = "",
   placeholder = "Pilih...",
+  container,
 }: {
   value: string | number
   onChange: (value: any) => void
@@ -24,9 +25,38 @@ export function LuxurySelect({
   ariaLabel?: string
   className?: string
   placeholder?: string
+  container?: HTMLElement | null
 }) {
   const [open, setOpen] = useState(false)
   const current = options.find((opt) => String(opt.value) === String(value))
+
+  const content = (
+    <Popover.Content
+      align="start"
+      sideOffset={4}
+      className="z-50 max-h-64 min-w-[180px] overflow-y-auto border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95"
+    >
+      {options.map((opt) => {
+        const isSelected = String(opt.value) === String(value)
+        return (
+          <button
+            key={String(opt.value)}
+            type="button"
+            onClick={() => {
+              onChange(opt.value)
+              setOpen(false)
+            }}
+            className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors ${
+              isSelected ? "bg-secondary font-semibold text-primary" : "text-foreground hover:bg-surface"
+            }`}
+          >
+            <span className="truncate">{opt.label}</span>
+            {isSelected && <Check size={13} className="shrink-0 text-primary" />}
+          </button>
+        )
+      })}
+    </Popover.Content>
+  )
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -40,33 +70,7 @@ export function LuxurySelect({
           <ChevronDown size={14} className={`shrink-0 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
       </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          align="start"
-          sideOffset={4}
-          className="z-50 max-h-64 min-w-[180px] overflow-y-auto border border-border bg-card p-1 shadow-lg animate-in fade-in-0 zoom-in-95"
-        >
-          {options.map((opt) => {
-            const isSelected = String(opt.value) === String(value)
-            return (
-              <button
-                key={String(opt.value)}
-                type="button"
-                onClick={() => {
-                  onChange(opt.value)
-                  setOpen(false)
-                }}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs transition-colors ${
-                  isSelected ? "bg-secondary font-semibold text-primary" : "text-foreground hover:bg-surface"
-                }`}
-              >
-                <span className="truncate">{opt.label}</span>
-                {isSelected && <Check size={13} className="shrink-0 text-primary" />}
-              </button>
-            )
-          })}
-        </Popover.Content>
-      </Popover.Portal>
+      {container ? <Popover.Portal container={container}>{content}</Popover.Portal> : content}
     </Popover.Root>
   )
 }
@@ -75,10 +79,12 @@ export function LuxuryDatePicker({
   value,
   onChange,
   className = "",
+  container,
 }: {
   value: string
   onChange: (date: string) => void
   className?: string
+  container?: HTMLElement | null
 }) {
   const [open, setOpen] = useState(false)
 
@@ -118,6 +124,95 @@ export function LuxuryDatePicker({
 
   const formattedDisplay = value ? dateLabel(value, true) : "Pilih tanggal"
 
+  const content = (
+    <Popover.Content
+      align="center"
+      sideOffset={4}
+      className="z-50 w-72 border border-border bg-card p-4 shadow-xl animate-in fade-in-0 zoom-in-95"
+    >
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
+        <button
+          type="button"
+          onClick={handlePrevMonth}
+          className="flex size-7 items-center justify-center hover:bg-secondary transition-colors"
+          aria-label="Bulan sebelumnya"
+        >
+          <ChevronLeft size={15} />
+        </button>
+        <span className="text-xs font-bold text-foreground">
+          {monthNames[month]} {year}
+        </span>
+        <button
+          type="button"
+          onClick={handleNextMonth}
+          className="flex size-7 items-center justify-center hover:bg-secondary transition-colors"
+          aria-label="Bulan berikutnya"
+        >
+          <ChevronRight size={15} />
+        </button>
+      </div>
+
+      {/* Day of Week Headers */}
+      <div className="grid grid-cols-7 gap-1 text-center text-2xs font-semibold text-muted-foreground mb-2">
+        {dayNames.map((d) => (
+          <div key={d} className="py-1">{d}</div>
+        ))}
+      </div>
+
+      {/* Days Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+          <div key={`empty-${i}`} />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1
+          const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+          const isSelected = dateStr === value
+          const isToday = dateStr === today()
+          return (
+            <button
+              key={dateStr}
+              type="button"
+              onClick={() => handleSelectDay(day)}
+              className={`flex size-8 items-center justify-center text-xs font-medium transition-colors ${
+                isSelected
+                  ? "bg-forest-deep text-white font-bold"
+                  : isToday
+                    ? "border border-primary text-primary hover:bg-secondary"
+                    : "text-foreground hover:bg-surface"
+              }`}
+            >
+              {day}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Footer Buttons */}
+      <div className="flex items-center justify-between pt-3 border-t border-border mt-3 text-2xs">
+        <button
+          type="button"
+          onClick={() => {
+            onChange(today())
+            setViewDate(new Date())
+            setOpen(false)
+          }}
+          className="text-primary font-semibold hover:underline"
+        >
+          Hari Ini
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          Tutup
+        </button>
+      </div>
+    </Popover.Content>
+  )
+
   return (
     <div className={`flex shrink-0 items-center border border-border bg-card ${className}`}>
       <button
@@ -139,94 +234,7 @@ export function LuxuryDatePicker({
             <span>{formattedDisplay}</span>
           </button>
         </Popover.Trigger>
-        <Popover.Portal>
-          <Popover.Content
-            align="center"
-            sideOffset={4}
-            className="z-50 w-72 border border-border bg-card p-4 shadow-xl animate-in fade-in-0 zoom-in-95"
-          >
-            {/* Calendar Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
-              <button
-                type="button"
-                onClick={handlePrevMonth}
-                className="flex size-7 items-center justify-center hover:bg-secondary transition-colors"
-                aria-label="Bulan sebelumnya"
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <span className="text-xs font-bold text-foreground">
-                {monthNames[month]} {year}
-              </span>
-              <button
-                type="button"
-                onClick={handleNextMonth}
-                className="flex size-7 items-center justify-center hover:bg-secondary transition-colors"
-                aria-label="Bulan berikutnya"
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-
-            {/* Day of Week Headers */}
-            <div className="grid grid-cols-7 gap-1 text-center text-2xs font-semibold text-muted-foreground mb-2">
-              {dayNames.map((d) => (
-                <div key={d} className="py-1">{d}</div>
-              ))}
-            </div>
-
-            {/* Days Grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                <div key={`empty-${i}`} />
-              ))}
-              {Array.from({ length: daysInMonth }).map((_, i) => {
-                const day = i + 1
-                const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-                const isSelected = dateStr === value
-                const isToday = dateStr === today()
-                return (
-                  <button
-                    key={dateStr}
-                    type="button"
-                    onClick={() => handleSelectDay(day)}
-                    className={`flex size-8 items-center justify-center text-xs font-medium transition-colors ${
-                      isSelected
-                        ? "bg-forest-deep text-white font-bold"
-                        : isToday
-                          ? "border border-primary text-primary hover:bg-secondary"
-                          : "text-foreground hover:bg-surface"
-                    }`}
-                  >
-                    {day}
-                  </button>
-                )
-              })}
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="flex items-center justify-between pt-3 border-t border-border mt-3 text-2xs">
-              <button
-                type="button"
-                onClick={() => {
-                  onChange(today())
-                  setViewDate(new Date())
-                  setOpen(false)
-                }}
-                className="text-primary font-semibold hover:underline"
-              >
-                Hari Ini
-              </button>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Tutup
-              </button>
-            </div>
-          </Popover.Content>
-        </Popover.Portal>
+        {container ? <Popover.Portal container={container}>{content}</Popover.Portal> : content}
       </Popover.Root>
 
       <button
