@@ -9,6 +9,7 @@ Selamat datang di pusat dokumentasi resmi aplikasi web **Booking Padel (Rally Pa
 ```
 docs/
 ├── README.md                                    # Pusat Navigasi & Indeks Utama
+├── SETUP_GUIDE.md                               # Panduan Lengkap Setup & Konfigurasi Cloud
 │
 ├── 01-product/                                  # Kebutuhan Produk & Bisnis
 │   └── PRD-Booking-Padel.md                     # Product Requirement Document (5 Epic MVP)
@@ -27,6 +28,10 @@ docs/
 ---
 
 ## 📚 Indeks Dokumen Berdasarkan Kategori
+
+### 0. Panduan Setup & Konfigurasi Lingkungan
+- **[`SETUP_GUIDE.md`](file:///C:/Users/UwU.KEPO/Desktop/Project/PADEL/docs/SETUP_GUIDE.md)**
+  - Panduan lengkap konfigurasi cloud: Supabase (PostgreSQL), Upstash Redis (Slot Locking), Midtrans Sandbox (QRIS v2), Resend Email (OTP), dan variabel lingkungan `.env`.
 
 ### 1. Kategori: Kebutuhan Produk & Bisnis
 - **[`01-product/PRD-Booking-Padel.md`](file:///C:/Users/UwU.KEPO/Desktop/Project/PADEL/docs/01-product/PRD-Booking-Padel.md)**
