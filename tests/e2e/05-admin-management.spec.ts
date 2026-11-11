@@ -54,4 +54,18 @@ test.describe("05. Admin Court Maintenance & Management", () => {
     const deleteRes = await request.delete(`/api/admin/blocks?id=${blockData.id}`);
     expect(deleteRes.ok()).toBeTruthy();
   });
+
+  test("rejects malformed maintenance block requests missing required fields", async ({ request }) => {
+    // Missing startTime and endTime
+    const badRes = await request.post("/api/admin/blocks", {
+      data: {
+        courtId: 1,
+        date: "2026-11-25",
+      },
+    });
+
+    expect(badRes.status()).toBe(400);
+    const errData = await badRes.json();
+    expect(errData.error).toContain("required");
+  });
 });

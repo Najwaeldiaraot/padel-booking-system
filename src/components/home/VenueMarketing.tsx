@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { motion, useReducedMotion } from "motion/react"
 import { Link } from "react-router"
-import { ArrowRight, ArrowUpRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, MapPin, Star } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Car, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Coffee, Copy, MapPin, Navigation, ShowerHead, Sparkles, Star } from "lucide-react"
 import { button, clock, courtShortName, eyebrow, outlineButton, ratingSummary, useApp } from "@/lib/club"
 import { cinematicEase } from "@/components/ui/CinematicMotion"
 import { useContent, useLocale } from "@/lib/i18n"
@@ -381,36 +381,178 @@ export function PlayerStories() {
 export function ClubLocation() {
   const { club } = useApp()
   const { t } = useLocale()
+  const [copied, setCopied] = useState(false)
+
+  // Real-time WIB status check
+  const now = new Date()
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000
+  const wibDate = new Date(utc + 3600000 * 7)
+  const currentHour = wibDate.getHours()
+  const isOpen = currentHour >= (club.openHour ?? 7) && currentHour < (club.closeHour ?? 22)
+
+  const mapsQuery = encodeURIComponent(`${club.name} ${club.address}`)
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
+  const wazeUrl = `https://waze.com/ul?q=${mapsQuery}&navigate=yes`
+  const mapsEmbedUrl = `https://maps.google.com/maps?q=${mapsQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+
+  const handleCopyAddress = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(`${club.name}, ${club.address}`)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   return (
-    <section id="visit" className="mx-auto mt-20 grid max-w-[1344px] scroll-mt-8 gap-8 border-t border-border px-6 pt-14 md:grid-cols-[1fr_1.1fr] md:items-center md:gap-20 md:px-10">
-      <div>
-        <p className={`${eyebrow} text-sage`}>05 / Find the club</p>
-        <h2 className="mt-5 font-display text-5xl leading-[1.05] md:text-6xl">
-          {t("Kita ketemu", "See you")}
-          <br />
-          <span className="italic">{t("di lapangan.", "on court.")}</span>
-        </h2>
-      </div>
-      <div className="border-l border-border pl-6 md:pl-10">
-        <div className="flex max-w-sm gap-3">
-          <MapPin size={19} className="mt-1 shrink-0" aria-hidden="true" />
+    <section id="visit" className="mx-auto mt-24 max-w-[1344px] scroll-mt-8 border-t border-border px-6 pt-16 md:px-10">
+      <div className="grid gap-12 lg:grid-cols-[1fr_1.3fr] lg:items-start lg:gap-16">
+        {/* Left Column: Heading, Info & Actions */}
+        <div className="flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-medium">{club.name}</h3>
-            <p className="mt-2 text-xs leading-6 text-muted-foreground">{club.address}</p>
+            <div className="flex items-center gap-2">
+              <p className={`${eyebrow} text-sage`}>05 / Find the club</p>
+              <span className="inline-block h-1 w-1 rounded-full bg-sage" />
+              <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{club.area}</span>
+            </div>
+
+            <h2 className="mt-5 font-display text-5xl leading-[1.05] tracking-tight md:text-6xl">
+              {t("Kita ketemu", "See you")}
+              <br />
+              <span className="italic">{t("di lapangan.", "on court.")}</span>
+            </h2>
+
+            {/* Address & Hours Card */}
+            <div className="mt-8 space-y-4 border-l-2 border-primary/40 pl-5">
+              <div className="flex items-start gap-3">
+                <MapPin size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">{club.name}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{club.address}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-foreground/80">
+                <Clock3 size={16} className="shrink-0 text-primary" aria-hidden="true" />
+                <span>
+                  {t("Setiap hari", "Daily")} · {clock(club.openHour)}–{clock(club.closeHour)} WIB
+                </span>
+              </div>
+            </div>
+
+            {/* Facility Highlights / Perks */}
+            <div className="mt-8 border-t border-border/60 pt-6">
+              <p className="text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+                {t("Fasilitas & Akses", "Amenities & Access")}
+              </p>
+              <div className="mt-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+                  <Car size={14} className="text-primary shrink-0" />
+                  <span>{t("Free Valet & Parkir", "Free Parking")}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+                  <ShowerHead size={14} className="text-primary shrink-0" />
+                  <span>{t("Locker & Hot Shower", "Hot Showers")}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+                  <Coffee size={14} className="text-primary shrink-0" />
+                  <span>{t("Courtside Coffee Bar", "Coffee Lounge")}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs">
+                  <Sparkles size={14} className="text-primary shrink-0" />
+                  <span>{t("Pro Shop & Racket Rental", "Pro Shop")}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-xs font-medium text-primary-foreground shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+              >
+                <Navigation size={14} />
+                <span>Google Maps</span>
+                <ArrowUpRight size={13} className="opacity-75" />
+              </a>
+
+              <a
+                href={wazeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${outlineButton} gap-2 rounded-full py-2.5 text-xs`}
+              >
+                <span>Waze</span>
+                <ArrowUpRight size={13} />
+              </a>
+
+              <button
+                type="button"
+                onClick={handleCopyAddress}
+                className={`${outlineButton} gap-2 rounded-full py-2.5 text-xs transition-colors ${
+                  copied ? "border-emerald-500/50 text-emerald-600 dark:text-emerald-400" : ""
+                }`}
+                aria-label="Salin alamat lengkap"
+              >
+                {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                <span>{copied ? t("Alamat Tersalin!", "Address Copied!") : t("Salin Alamat", "Copy Address")}</span>
+              </button>
+            </div>
           </div>
         </div>
-        <p className="mt-5 flex items-center gap-3 text-xs">
-          <Clock3 size={17} aria-hidden="true" />
-          {t("Setiap hari", "Daily")} · {clock(club.openHour)}–{clock(club.closeHour)} WIB
-        </p>
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${club.name} ${club.address}`)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${outlineButton} mt-7`}
-        >
-          {t("Buka petunjuk arah", "Get directions")} <ArrowUpRight size={15} />
-        </a>
+
+        {/* Right Column: Google Maps Interactive Bento Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-black/5">
+          {/* Top Floating Badge Bar */}
+          <div className="flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                {isOpen && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                )}
+                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${isOpen ? "bg-emerald-500" : "bg-amber-500"}`} />
+              </span>
+              <span className="text-xs font-medium text-foreground">
+                {isOpen ? t("Buka Sekarang", "Open Now") : t("Tutup", "Closed")}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                · {clock(club.openHour)}–{clock(club.closeHour)} WIB
+              </span>
+            </div>
+
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-medium text-primary hover:underline inline-flex items-center gap-1"
+            >
+              <span>{t("Perbesar Peta", "View larger map")}</span>
+              <ArrowUpRight size={12} />
+            </a>
+          </div>
+
+          {/* Interactive Google Map Iframe */}
+          <div className="relative aspect-[16/11] w-full bg-muted/40 sm:aspect-[16/10]">
+            <iframe
+              title={`Peta Lokasi ${club.name}`}
+              src={mapsEmbedUrl}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen={false}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="h-full w-full grayscale-[25%] contrast-[1.05] transition-all duration-500 hover:grayscale-0"
+            />
+          </div>
+
+          {/* Bottom Bar: Landmark & Transit Note */}
+          <div className="flex items-center justify-between bg-muted/30 px-4 py-2.5 text-[11px] text-muted-foreground">
+            <span>📍 Patokan: Kawasan Kemang, Jakarta Selatan</span>
+            <span>Mudah diakses mobil & motor</span>
+          </div>
+        </div>
       </div>
     </section>
   )

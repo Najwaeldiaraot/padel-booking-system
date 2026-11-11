@@ -60,7 +60,15 @@ test.describe("06. Check-in, Invoice & Live Operations Lifecycle", () => {
     });
     expect(webhookRes.ok()).toBeTruthy();
 
-    // 2. Perform Check-in via Admin Checkin API
+    // 2. Negative Scenario: Attempt to complete playing session BEFORE check-in
+    const prematureComplete = await request.patch(`/api/bookings/${booking.id}`, {
+      data: { action: "complete" },
+    });
+    expect(prematureComplete.status()).toBe(400);
+    const prematureErr = await prematureComplete.json();
+    expect(prematureErr.error).toContain("CHECKED_IN");
+
+    // 3. Positive Scenario: Perform Check-in via Admin Checkin API
     const checkinRes = await request.patch(`/api/bookings/${booking.id}`, {
       data: { action: "checkin" },
     });
@@ -69,12 +77,33 @@ test.describe("06. Check-in, Invoice & Live Operations Lifecycle", () => {
     expect(checkinData.status).toBe("CHECKED_IN");
     expect(checkinData.checkedInAt).toBeDefined();
 
-    // 3. Complete playing session via Admin Complete API
+    // 4. Positive Scenario: Undo Check-in (revert to CONFIRMED)
+    const undoCheckinRes = await request.patch(`/api/bookings/${booking.id}`, {
+      data: { action: "undo_checkin" },
+    });
+    expect(undoCheckinRes.ok()).toBeTruthy();
+    const undoData = await undoCheckinRes.json();
+    expect(undoData.status).toBe("CONFIRMED");
+
+    // Re-checkin for completion
+    await request.patch(`/api/bookings/${booking.id}`, {
+      data: { action: "checkin" },
+    });
+
+    // 5. Positive Scenario: Complete playing session via Admin Complete API
     const completeRes = await request.patch(`/api/bookings/${booking.id}`, {
       data: { action: "complete" },
     });
     expect(completeRes.ok()).toBeTruthy();
     const completeData = await completeRes.json();
     expect(completeData.status).toBe("COMPLETED");
+
+    // 6. Positive Scenario: Undo Complete (revert to CHECKED_IN)
+    const undoCompleteRes = await request.patch(`/api/bookings/${booking.id}`, {
+      data: { action: "undo_complete" },
+    });
+    expect(undoCompleteRes.ok()).toBeTruthy();
+    const undoCompleteData = await undoCompleteRes.json();
+    expect(undoCompleteData.status).toBe("CHECKED_IN");
   });
 });

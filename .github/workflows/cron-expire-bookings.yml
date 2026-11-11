@@ -1,0 +1,17 @@
+name: Auto-Expire Stale Bookings
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  expire-bookings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Auto-Expire Cron Endpoint
+        run: |
+          curl -s -X POST "https://padel-booking-rally.vercel.app/api/cron/expire-bookings" \
+            -H "Content-Type: application/json" \
+            ${{ secrets.CRON_SECRET != '' && format('-H "Authorization: Bearer {0}"', secrets.CRON_SECRET) || '' }}
